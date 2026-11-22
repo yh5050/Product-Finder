@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deskside · Tech unboxing marketplace prototype</title>
+<meta name="description" content="Clickable prototype: a brand publishes a keyboard brief, a creator applies with a past video, and the brand shortlists them. Sample data only.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231F4FD8'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='700' font-size='16' fill='white' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&display=swap">
+<style>
+body{margin:0;background:#F5F2EC}
+a{color:#1F4FD8}a:hover{color:#163A9E}
+.app{font-family:Inter,system-ui,sans-serif;color:#1D1D1F;background:#F5F2EC;min-height:1240px;font-size:15px;line-height:1.45}
+.app *{box-sizing:border-box}
+.app h1,.app h2,.app h3,.app h4{font-family:'Inter Tight',Inter,sans-serif;margin:0;letter-spacing:-0.01em}
+.app p{margin:0}
+.app button,.app input,.app select,.app textarea{font:inherit;color:inherit}
+.app :focus-visible{outline:3px solid #1F4FD8;outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:#5E5B55}
+.muted{color:#5E5B55}
+.small{font-size:13px}
+
+/* demo bar */
+.demobar{background:#1D1D1F;color:#F5F2EC;display:flex;flex-wrap:wrap;gap:12px 28px;align-items:center;padding:12px 24px}
+.demobar .eyebrow{color:#C9C5BC}
+.seg{display:inline-flex;background:#2E2E31;border-radius:999px;padding:4px;gap:4px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;cursor:pointer;padding:8px 16px;border-radius:999px;font-size:14px;font-weight:500;color:#E2DED6;min-height:40px}
+.seg button[aria-pressed="true"]{background:#F5F2EC;color:#1D1D1F;font-weight:600}
+.seg button:focus-visible{outline:3px solid #8FA8F0;outline-offset:2px}
+.steps{display:flex;flex-wrap:wrap;gap:6px 16px;list-style:none;margin:0;padding:0;font-size:13px;color:#C9C5BC}
+.steps li{display:flex;align-items:center;gap:6px}
+.steps .n{width:20px;height:20px;border-radius:50%;border:1.5px solid #77746D;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.steps li[data-done="true"]{color:#F5F2EC}
+.steps li[data-done="true"] .n{background:#8FA8F0;border-color:#8FA8F0;color:#1D1D1F}
+.hint{font-size:13px;color:#F5F2EC;background:#2E2E31;padding:6px 12px;border-radius:8px}
+.linkbtn{border:0;background:none;color:#C9C5BC;text-decoration:underline;cursor:pointer;font-size:13px;padding:8px 4px;min-height:40px}
+.linkbtn:hover{color:#FFFFFF}
+
+/* shared atoms */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:12px;border:1.5px solid transparent;font-weight:600;font-size:15px;cursor:pointer;text-decoration:none}
+.btn.primary{background:#1F4FD8;color:#FFFFFF}
+.btn.primary:hover{background:#1A43B8}
+.btn.sec{background:#FFFFFF;border-color:#CFC9BE;color:#1D1D1F}
+.btn.sec:hover{border-color:#1D1D1F}
+.btn.danger{background:#FFFFFF;border-color:#CFC9BE;color:#8A3B22}
+.btn.danger:hover{border-color:#8A3B22}
+.btn.block{width:100%}
+.btn[disabled]{background:#E4DFD6;color:#5E5B55;cursor:not-allowed;border-color:transparent}
+.textbtn{border:0;background:none;color:#1F4FD8;font-weight:600;cursor:pointer;padding:10px 0;min-height:44px;font-size:14px}
+.textbtn:hover{text-decoration:underline}
+.card{background:#FFFFFF;border:1px solid #E4DFD6;border-radius:18px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:#EEEAE2;color:#3A3936;white-space:nowrap}
+.chip.cobalt{background:#E8EEFC;color:#1A43B8}
+.chip.sample{background:transparent;border:1px dashed #A8A298;color:#5E5B55}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.st::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.st-applied{background:#E8EEFC;color:#1A43B8}
+.st-shortlisted{background:#E1F0E4;color:#1E6B35}
+.st-declined{background:#F4E4DE;color:#8A3B22}
+.st-draft{background:#EEEAE2;color:#5E5B55}
+.st-published{background:#E1F0E4;color:#1E6B35}
+.mark{width:36px;height:36px;border-radius:10px;background:#1D1D1F;color:#F5F2EC;display:inline-flex;align-items:center;justify-content:center;font-family:'Inter Tight',sans-serif;font-weight:700;font-size:14px;flex:none}
+.mark.sm{width:24px;height:24px;border-radius:7px;font-size:11px}
+.avatar{width:40px;height:40px;border-radius:50%;background:#DCE4FA;color:#1A43B8;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none}
+.avatar.lg{width:56px;height:56px;font-size:18px}
+
+/* terms */
+.terms{margin:0;display:grid;grid-template-columns:minmax(96px,120px) 1fr;}
+.terms dt,.terms dd{padding:12px 0;border-top:1px solid #ECE7DF;margin:0}
+.terms dt{font-size:13px;font-weight:600;color:#5E5B55;padding-right:12px}
+.terms dd .v{font-weight:600}
+.terms dd .n{font-size:13px;color:#5E5B55;margin-top:2px}
+
+/* brand */
+.brandhead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;padding:16px 32px;background:#FBFAF7;border-bottom:1px solid #E4DFD6}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tabs button{border:0;background:transparent;cursor:pointer;padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;color:#5E5B55;min-height:44px}
+.tabs button[aria-pressed="true"]{background:#1D1D1F;color:#F5F2EC}
+.tabs .count{display:inline-block;margin-left:6px;background:#1F4FD8;color:#FFFFFF;border-radius:999px;padding:0 7px;font-size:12px}
+.wrap{max-width:1320px;margin:0 auto;padding:32px}
+.pagehead{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:24px}
+.pagehead h1{font-size:32px;line-height:1.15;margin-top:6px}
+.cols{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.formcol{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:20px}
+.prevcol{flex:1 1 360px;max-width:440px;min-width:0;display:flex;flex-direction:column;gap:16px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+.section{padding:24px;display:flex;flex-direction:column;gap:18px}
+.section h2{font-size:18px;display:flex;align-items:center;gap:10px}
+.section h2 .num{width:26px;height:26px;border-radius:8px;background:#1D1D1F;color:#F5F2EC;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label,.field .lab{font-size:13px;font-weight:600}
+.field .help{font-size:13px;color:#5E5B55}
+.input{height:44px;border:1.5px solid #CFC9BE;border-radius:10px;padding:0 12px;background:#FFFFFF;width:100%}
+.input:hover{border-color:#8C877E}
+.input:focus-visible{outline:3px solid #1F4FD8;outline-offset:1px;border-color:#1F4FD8}
+textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical}
+.affix{display:flex;align-items:center;border:1.5px solid #CFC9BE;border-radius:10px;background:#FFFFFF;overflow:hidden}
+.affix:focus-within{outline:3px solid #1F4FD8;outline-offset:1px;border-color:#1F4FD8}
+.affix span{padding:0 12px;color:#5E5B55;font-weight:600;font-size:14px;white-space:nowrap}
+.affix input{border:0;height:41px;flex:1;min-width:0;padding:0 4px;background:transparent}
+.affix input:focus-visible{outline:none}
+fieldset[disabled] .input,fieldset[disabled] .affix{background:#F3F0EA;color:#3A3936}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.opt{display:flex;gap:12px;align-items:flex-start;padding:16px;border:1.5px solid #E4DFD6;border-radius:14px;cursor:pointer;background:#FFFFFF}
+.opt:hover{border-color:#8C877E}
+.opt:has(input:checked){border-color:#1F4FD8;background:#F4F7FE}
+.opt:has(input:focus-visible){outline:3px solid #1F4FD8;outline-offset:2px}
+.opt input{accent-color:#1F4FD8;width:18px;height:18px;margin:2px 0 0;flex:none}
+.opt input:focus-visible{outline:none}
+.opt .t{font-weight:600}
+.opt .d{font-size:13px;color:#5E5B55;margin-top:2px}
+.info{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:#F1EEE7;font-size:14px}
+.info.cobalt{background:#EEF2FD;color:#1D2E66}
+.info.green{background:#E6F2E8;color:#174F28}
+.info svg{flex:none;margin-top:2px}
+.readonly{padding:12px 14px;border-radius:10px;background:#F3F0EA;border:1.5px dashed #D8D2C7;font-weight:600}
+.photo{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.photo img{width:132px;height:99px;object-fit:cover;border-radius:12px;border:1px solid #E4DFD6}
+.error{color:#8A3B22;font-weight:600;font-size:14px}
+
+/* feed card */
+.fcard{overflow:hidden;display:flex;flex-direction:column}
+.fbtn{border:0;background:none;padding:0;text-align:left;cursor:pointer;display:block;width:100%}
+.fbtn:hover .ftitle{text-decoration:underline}
+.fimg{position:relative;display:block;aspect-ratio:4/3;background:#E4DFD6}
+.fimg img{width:100%;height:100%;object-fit:cover;display:block}
+.fimg .fee{position:absolute;left:12px;bottom:12px;background:#1D1D1F;color:#FFFFFF;border-radius:10px;padding:6px 10px;font-weight:700;font-family:'Inter Tight',sans-serif;font-size:18px}
+.fimg .stpos{position:absolute;right:12px;top:12px}
+.fbody{display:flex;flex-direction:column;gap:8px;padding:14px 16px 16px}
+.fbrand{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#5E5B55}
+.ftitle{font-family:'Inter Tight',sans-serif;font-weight:600;font-size:17px;line-height:1.25;color:#1D1D1F}
+.fchips{display:flex;gap:6px;flex-wrap:wrap}
+.why{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:#1D2E66;background:#EEF2FD;border-radius:10px;padding:10px 12px}
+.why svg{flex:none;margin-top:2px}
+
+/* creator phone */
+.cstage{display:flex;flex-wrap:wrap;justify-content:center;gap:32px;padding:32px 16px 48px}
+.phone{width:100%;max-width:400px;background:#FBFAF7;border:1px solid #DED8CD;border-radius:32px;overflow:hidden;box-shadow:0 30px 60px -30px rgba(40,30,20,.35)}
+.phead{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px}
+.wordmark{font-family:'Inter Tight',sans-serif;font-weight:700;font-size:20px;letter-spacing:-0.02em}
+.wordmark span{color:#1F4FD8}
+.ptabs{display:flex;gap:4px;margin:0 18px;padding:4px;background:#EEEAE2;border-radius:12px}
+.ptabs button{flex:1;border:0;background:transparent;border-radius:9px;min-height:40px;font-weight:600;font-size:14px;color:#5E5B55;cursor:pointer}
+.ptabs button[aria-pressed="true"]{background:#FFFFFF;color:#1D1D1F;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.pbody{padding:16px 18px 28px;display:flex;flex-direction:column;gap:16px}
+.filters{display:flex;flex-direction:column;gap:8px}
+.frow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.frow .lab{font-size:12px;font-weight:600;color:#5E5B55;width:64px}
+.fchip{border:1.5px solid #D8D2C7;background:#FFFFFF;border-radius:999px;padding:0 12px;min-height:36px;font-size:13px;font-weight:600;cursor:pointer;color:#3A3936}
+.fchip[aria-pressed="true"]{background:#1D1D1F;border-color:#1D1D1F;color:#FFFFFF}
+.backbtn{display:inline-flex;align-items:center;gap:6px;border:0;background:none;font-weight:600;cursor:pointer;padding:8px 0;min-height:44px;color:#1D1D1F;font-size:14px;align-self:flex-start}
+.hero{border-radius:16px;overflow:hidden;aspect-ratio:4/3}
+.hero img{width:100%;height:100%;object-fit:cover;display:block}
+.h2{font-size:22px;line-height:1.2}
+.h3{font-size:16px}
+.callout{border-radius:16px;background:#EEF2FD;padding:16px;display:flex;flex-direction:column;gap:12px}
+.callout .reason{font-weight:600;color:#1D2E66;font-size:15px;display:flex;gap:8px;align-items:flex-start}
+.vrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.vcard{border:1.5px solid #D5DDF5;background:#FFFFFF;border-radius:12px;padding:8px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.vcard:hover{border-color:#1F4FD8}
+.vcard[aria-pressed="true"]{border-color:#1F4FD8;box-shadow:0 0 0 2px #1F4FD8 inset}
+.vcard .vt{font-size:13px;font-weight:600;line-height:1.3;color:#1D1D1F}
+.vcard .vm{font-size:12px;color:#5E5B55}
+.thumb{position:relative;aspect-ratio:9/16;border-radius:9px;overflow:hidden;background:#2B2E35;display:block}
+.thumb.short{aspect-ratio:4/5}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;background:rgba(20,20,22,.72);display:flex;align-items:center;justify-content:center}
+.thumb .dur{position:absolute;right:6px;bottom:6px;background:rgba(20,20,22,.8);color:#FFFFFF;font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px}
+.thumb .plat{position:absolute;left:6px;top:6px;background:rgba(255,255,255,.92);color:#1D1D1F;font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px}
+.tsec{padding:4px 16px 8px}
+.tsec .hrow{display:flex;justify-content:space-between;align-items:center;padding:12px 0 6px;gap:8px}
+.pick{display:flex;flex-direction:column;gap:8px}
+.pitem{display:flex;gap:12px;align-items:center;padding:10px;border:1.5px solid #E4DFD6;border-radius:12px;cursor:pointer;background:#FFFFFF}
+.pitem:has(input:checked){border-color:#1F4FD8;background:#F4F7FE}
+.pitem:has(input:focus-visible){outline:3px solid #1F4FD8;outline-offset:2px}
+.pitem input{accent-color:#1F4FD8;width:18px;height:18px;margin:0;flex:none}
+.pitem input:focus-visible{outline:none}
+.pitem .thumb{width:44px;flex:none;border-radius:6px}
+.pitem .pt{font-size:14px;font-weight:600;line-height:1.3}
+.pitem .pm{font-size:12px;color:#5E5B55}
+.banner{border-radius:14px;padding:14px;display:flex;gap:10px;align-items:flex-start}
+.banner.applied{background:#EEF2FD;color:#1D2E66}
+.banner.shortlisted{background:#E1F0E4;color:#174F28}
+.banner.declined{background:#F4E4DE;color:#6E2E19}
+.lists{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.lists li{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.lists li svg{flex:none;margin-top:2px}
+.done{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:24px 8px}
+.done .ok{width:64px;height:64px;border-radius:50%;background:#1F4FD8;display:flex;align-items:center;justify-content:center}
+.side{flex:0 1 300px;display:flex;flex-direction:column;gap:12px;padding-top:12px}
+.side .card{padding:18px}
+.arow{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid #E4DFD6;border-radius:14px;background:#FFFFFF;cursor:pointer;text-align:left;width:100%}
+.arow img{width:64px;height:48px;border-radius:8px;object-fit:cover;flex:none}
+
+/* applicants */
+.split{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+.alist{flex:1 1 320px;max-width:380px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.apanel{flex:999 1 560px;min-width:0;padding:28px;display:flex;flex-direction:column;gap:24px}
+.aitem{display:flex;gap:12px;align-items:flex-start;padding:14px;border:1.5px solid #E4DFD6;border-radius:14px;background:#FFFFFF;cursor:pointer;text-align:left;width:100%}
+.aitem:hover{border-color:#8C877E}
+.aitem[aria-pressed="true"]{border-color:#1F4FD8;background:#F4F7FE}
+.aitem .nm{font-weight:700}
+.aitem .meta{font-size:13px;color:#5E5B55}
+.aitem .fit{font-size:13px;color:#1D2E66;font-weight:600;margin-top:4px}
+.aitem .warn{font-size:13px;color:#8A3B22;font-weight:600;margin-top:4px}
+.rank{width:24px;height:24px;border-radius:50%;background:#EEEAE2;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none;margin-top:8px}
+.ahead{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}
+.vfeature{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+.vfeature .thumb{width:200px;flex:none;border-radius:14px}
+.vfeature .thumb .play{width:56px;height:56px}
+.fitcol{flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:14px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.stat{border:1px solid #E4DFD6;border-radius:14px;padding:14px;background:#FBFAF7}
+.stat .sv{font-family:'Inter Tight',sans-serif;font-size:20px;font-weight:600;margin-top:4px}
+.stat .sn{font-size:12px;color:#5E5B55;margin-top:4px}
+.selfrep{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7A4B12;background:#FBEFD9;border-radius:6px;padding:2px 6px;margin-top:6px}
+.actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding-top:20px;border-top:1px solid #ECE7DF}
+.quote{border-left:0;background:#F5F2EC;border-radius:12px;padding:12px 14px;font-size:14px}
+.empty{padding:48px 32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px}
+.toast{position:fixed;left:16px;right:16px;margin:0 auto;width:fit-content;bottom:24px;background:#1D1D1F;color:#FFFFFF;padding:12px 18px;border-radius:12px;font-weight:600;font-size:14px;box-shadow:0 12px 30px rgba(0,0,0,.25);z-index:20;display:flex;gap:10px;align-items:center;max-width:calc(100% - 32px)}
+.toast button{border:0;background:none;color:#B9C8F5;font-weight:700;cursor:pointer;min-height:32px}
+@media (max-width:640px){.wrap{padding:20px 16px}.brandhead{padding:12px 16px}.apanel{padding:18px}.pagehead h1{font-size:26px}.demobar{padding:12px 16px}.vfeature .thumb{width:100%;max-width:220px}}
+
+.app{min-height:100vh}
+</style>
+</head>
+<body>
+<div class="app" id="root"><noscript><p style="padding:24px">This prototype needs JavaScript.</p></noscript></div>
+<script>
+class DCLogic {
+  constructor(props){ this.props = props || {}; this.state = {}; this._q = false; }
+  setState(p){ var n = typeof p === 'function' ? p(this.state) : p; this.state = Object.assign({}, this.state, n);
+    if (!this._q) { this._q = true; var self = this; Promise.resolve().then(function(){ self._q = false; window.__dcRender && window.__dcRender(); }); } }
+}
+
+var KB = 'keyboard.svg';
+var STAND = 'stand.svg';
+var ORG = 'organizer.svg';
+var DESK = 'desk.svg';
+
+var VIDEOS = {
+  v1: { id: 'v1', title: 'First 60 seconds with a low-profile 75% keyboard', dur: '0:52', date: 'Oct 30, 2026', views: '41.2K', img: KB, pos: '45% 40%', kb: true,
+    fit: ['A 52-second first-impressions video, the same format and length this brief asks for.', 'Unboxing and a typing sound test both land in the first 15 seconds.', 'One of three keyboard videos Maya published in the past 90 days.'] },
+  v2: { id: 'v2', title: 'Swapping keycaps on a 65% board', dur: '0:47', date: 'Oct 4, 2026', views: '28.6K', img: KB, pos: '72% 55%', kb: true,
+    fit: ['Close-ups of a 65% layout, the same size as the Loop 65.', 'Shows hot-swap keycaps, a feature this product supports.', 'One of three keyboard videos Maya published in the past 90 days.'] },
+  v3: { id: 'v3', title: 'Lubing stabilizers on a budget keyboard', dur: '0:58', date: 'Sep 2, 2026', views: '19.3K', img: DESK, pos: '50% 82%', kb: true,
+    fit: ['Hands-on keyboard video with clear sound demos.', 'Tutorial format, so less like the first-impressions video requested.', 'One of three keyboard videos Maya published in the past 90 days.'] },
+  v4: { id: 'v4', title: 'My desk setup under $300', dur: '0:59', date: 'Oct 12, 2026', views: '63.0K', img: DESK, pos: '50% 30%', kb: false,
+    fit: ['Full desk setup with a compact keyboard in context.', 'Not keyboard-focused; the keyboard appears briefly.', 'Maya’s most-viewed video in the past 90 days.'] }
+};
+
+var OTHERS = {
+  jon: { id: 'jon', name: 'Jon Reyes', first: 'Jon', initials: 'JR', handle: '@jonbuilds', platform: 'YouTube Shorts', followers: '31.5K subscribers', followersN: 31500,
+    metricDate: 'Updated Nov 15, 2026', median: '22.1K', rankWhy: '2 keyboard videos in 90 days', note: 'Happy to shoot this on a MacBook desk to show the macOS pairing.',
+    video: { title: 'Wireless 65% keyboard on a MacBook desk', dur: '0:55', date: 'Nov 3, 2026', views: '34.8K', img: DESK, pos: '35% 85%' },
+    fit: ['Pairs a 65% wireless board with a Mac, matching the Loop 65’s macOS support.', 'Opens with the keyboard already set up, so less unboxing than requested.', 'One of two keyboard videos Jon published in the past 90 days.'] },
+  tess: { id: 'tess', name: 'Tess Lindqvist', first: 'Tess', initials: 'TL', handle: '@tessworks', platform: 'TikTok', followers: '8.9K followers', followersN: 8900,
+    metricDate: 'Updated Nov 12, 2026', median: '6.2K', rankWhy: '1 keyboard video in 90 days', note: '',
+    video: { title: 'Quiet keyboard for a shared office', dur: '0:44', date: 'Oct 21, 2026', views: '11.4K', img: KB, pos: '15% 60%' },
+    fit: ['Close-up switch sound comparison, useful for a first-impressions brief.', 'Smaller audience, but brand-owned videos have no follower minimum.', 'Tess’s only keyboard video in the past 90 days.'] }
+};
+
+var INITIAL = function () {
+  return {
+    role: 'brand', bTab: 'builder', cScr: 'feed', listing: 'kb', published: false, error: '', toast: '',
+    c: { product: 'Halden Loop 65', sku: 'HW-L65-GRY', category: 'Keyboards', compat: 'macOS and Windows · USB-C and Bluetooth 5.1', qty: '5', ship: 'the contiguous U.S.',
+      type: 'owned', followerMin: '15000', fee: '150', deliverable: 'One 45–60 second first-impressions video', deadline: '10', review: '3', own: 'keep', usage: '90' },
+    apps: {}, pick: 'v1', note: '', others: { jon: 'applied', tess: 'applied' }, selA: '', fCat: 'all', fPost: 'any'
+  };
+};
+
+function fmtK(n) { n = Number(n) || 0; if (n >= 1000) { var k = n / 1000; return (Math.round(k * 10) / 10) + 'K'; } return String(n); }
+var ST = { applied: 'Applied', shortlisted: 'Shortlisted', declined: 'Declined' };
+
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = INITIAL(); }
+
+  say(msg) {
+    this.setState({ toast: msg });
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toast: '' }), 4000);
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+
+  renderVals() {
+    var s = this.state, self = this, c = s.c;
+    var owned = c.type === 'owned';
+    var keep = c.own === 'keep';
+    var fee = Number(c.fee) || 0;
+    var minN = Number(c.followerMin) || 0;
+    var usage = 'Organic social, ' + c.usage + ' days';
+
+    var set = function (k) { return function (e) { var v = e.target.value; self.setState({ c: Object.assign({}, self.state.c, { [k]: v }), error: '' }); }; };
+    var on = {};
+    ['product', 'sku', 'category', 'compat', 'qty', 'ship', 'type', 'followerMin', 'fee', 'deliverable', 'deadline', 'review', 'own', 'usage'].forEach(function (k) { on[k] = set(k); });
+
+    var kbTerms = [
+      { k: 'Fee', v: '$' + fee + ' flat fee', n: 'USD · paid after the brand approves the video' },
+      { k: 'Deliverable', v: c.deliverable, n: owned ? 'Sent to the brand as a video file' : 'Published on your channel' },
+      { k: 'Posting', v: owned ? 'No post required' : 'Post required on your channel', n: owned ? 'You deliver the file; you don’t publish it' : 'Minimum ' + fmtK(minN) + ' followers · #ad disclosure required' },
+      { k: 'Deadline', v: 'Within ' + c.deadline + ' days of delivery', n: 'Brand reviews within ' + c.review + ' business days' },
+      { k: 'Shipping', v: 'Brand covers shipping', n: 'Ships to ' + c.ship + ' · ' + c.qty + ' samples available' },
+      { k: 'Sample', v: keep ? 'You keep the sample' : 'Return the sample', n: keep ? 'No return needed' : 'Within 14 days · brand pays return shipping' },
+      { k: 'Usage rights', v: owned ? 'Brand’s ' + usage.toLowerCase() : 'Stays on your channel; brand may repost organically for ' + c.usage + ' days', n: 'Paid advertising rights excluded' }
+    ];
+    var kb = {
+      id: 'kb', mark: 'HW', brand: 'Halden Works', title: c.product, cat: 'Keyboards', img: KB, alt: c.product + ' on an oak desk beside a mug and notebook',
+      fee: '$' + fee, post: owned ? 'No post required' : 'Post required', postReq: !owned, sample: keep ? 'Keep sample' : 'Return sample',
+      blurb: 'Compact 65% wireless mechanical keyboard with hot-swappable switches.',
+      match: 'You’ve published three keyboard videos in the past 90 days.',
+      matchSub: 'Your first-impressions video is the closest match to this brief’s format.',
+      rel: ['v1', 'v2'], terms: kbTerms, compat: c.compat,
+      receive: ['$' + fee + ' flat fee, paid after the brand approves your video', keep ? 'The ' + c.product + ' to keep' : 'A loaner ' + c.product + ' (return within 14 days, brand pays return shipping)', 'Free shipping to you'],
+      owe: [c.deliverable + ', delivered ' + (owned ? 'to the brand' : 'as a post on your channel'), 'Within ' + c.deadline + ' days of the sample arriving', owned ? 'No post on your channel' : 'Post with an #ad disclosure; minimum ' + fmtK(minN) + ' followers', 'Brand may use it on ' + usage.toLowerCase() + '. No paid ads.']
+    };
+    var stand = {
+      id: 'stand', mark: 'NF', brand: 'Northfold', title: 'Ridgeline Aluminum Laptop Stand', cat: 'Stands', img: STAND, alt: 'Aluminum laptop stand holding a laptop on an oak desk',
+      fee: '$120', post: 'Post required', postReq: true, sample: 'Return sample', blurb: 'Folding aluminum stand with six height positions.',
+      match: 'Your Oct 12 desk setup video shows a laptop stand in use.', matchSub: 'Northfold wants setup context more than unboxing.',
+      rel: ['v4'], compat: 'Laptops 10–17 in · up to 8 kg',
+      terms: [
+        { k: 'Fee', v: '$120 flat fee', n: 'USD · paid after the post goes live' },
+        { k: 'Deliverable', v: 'One 30–45 second setup video', n: 'Published on your channel' },
+        { k: 'Posting', v: 'Post required on your channel', n: 'Minimum 15K followers · #ad disclosure required' },
+        { k: 'Deadline', v: 'Post within 14 days of delivery', n: 'Brand reviews within 2 business days' },
+        { k: 'Shipping', v: 'Brand covers shipping both ways', n: 'Ships to the contiguous U.S.' },
+        { k: 'Sample', v: 'Return the sample', n: 'Within 14 days · prepaid return label' },
+        { k: 'Usage rights', v: 'Stays on your channel; brand may repost organically for 30 days', n: 'Paid advertising rights excluded' }
+      ],
+      receive: ['$120 flat fee, paid after the post goes live', 'A loaner stand (prepaid return label)', 'Free shipping both ways'],
+      owe: ['One 30–45 second setup video posted on your channel', 'Within 14 days of the sample arriving', 'An #ad disclosure on the post', 'Return the stand within 14 days']
+    };
+    var org = {
+      id: 'org', mark: 'PW', brand: 'Plainwire', title: 'Tether Under-Desk Cable Kit', cat: 'Organization', img: ORG, alt: 'Cable tray, ties and clips laid out on linen',
+      fee: '$75', post: 'No post required', postReq: false, sample: 'Keep sample', blurb: 'Cable tray, adhesive clips and reusable ties for one desk.',
+      match: 'Your Oct 12 desk setup video includes an under-desk cable walkthrough.', matchSub: 'Plainwire wants a quick before-and-after.',
+      rel: ['v4'], compat: 'Desks up to 160 cm wide · no drilling',
+      terms: [
+        { k: 'Fee', v: '$75 flat fee', n: 'USD · paid after the brand approves the video' },
+        { k: 'Deliverable', v: 'One 20–30 second before-and-after video', n: 'Sent to the brand as a video file' },
+        { k: 'Posting', v: 'No post required', n: 'You deliver the file; you don’t publish it' },
+        { k: 'Deadline', v: 'Within 7 days of delivery', n: 'Brand reviews within 3 business days' },
+        { k: 'Shipping', v: 'Brand covers shipping', n: 'Ships to the contiguous U.S.' },
+        { k: 'Sample', v: 'You keep the sample', n: 'No return needed' },
+        { k: 'Usage rights', v: 'Brand’s organic social, 60 days', n: 'Paid advertising rights excluded' }
+      ],
+      receive: ['$75 flat fee, paid after the brand approves your video', 'The cable kit to keep', 'Free shipping to you'],
+      owe: ['One 20–30 second before-and-after video, delivered to the brand', 'Within 7 days of the sample arriving', 'No post on your channel', 'Brand may use it on organic social for 60 days. No paid ads.']
+    };
+    var all = { kb: kb, stand: stand, org: org };
+
+    var app = function (id) { return s.apps[id]; };
+    var stOf = function (id) { var a = app(id); return a ? a.status : ''; };
+    var kbSt = stOf('kb');
+
+    // ---------- creator ----------
+    var openL = function (id) { return function () { var l = all[id]; var a = s.apps[id]; self.setState({ cScr: 'detail', listing: id, pick: a ? a.video : l.rel[0], note: a ? a.note : '' }); }; };
+    var visible = [kb, stand, org].filter(function (l) {
+      if (l.id === 'kb' && !s.published) return false;
+      if (s.fCat !== 'all' && l.cat !== s.fCat) return false;
+      if (s.fPost === 'req' && !l.postReq) return false;
+      if (s.fPost === 'none' && l.postReq) return false;
+      return true;
+    });
+    var feed = visible.map(function (l) {
+      var st = stOf(l.id);
+      return Object.assign({}, l, { open: openL(l.id), hasStatus: !!st, stClass: 'st-' + st, stLabel: ST[st] || '' });
+    });
+    var catFilters = [['all', 'All'], ['Keyboards', 'Keyboards'], ['Stands', 'Stands'], ['Organization', 'Organization']].map(function (p) {
+      return { label: p[1], on: s.fCat === p[0], pick: function () { self.setState({ fCat: p[0] }); } };
+    });
+    var postFilters = [['any', 'Any'], ['req', 'Post required'], ['none', 'No post']].map(function (p) {
+      return { label: p[1], on: s.fPost === p[0], pick: function () { self.setState({ fPost: p[0] }); } };
+    });
+
+    var Lb = all[s.listing] || kb;
+    var Lst = stOf(Lb.id);
+    var statusMsg = {
+      applied: 'You applied with “' + (app(Lb.id) ? VIDEOS[app(Lb.id).video].title : '') + '.” ' + Lb.brand + ' hasn’t reviewed it yet.',
+      shortlisted: Lb.brand + ' shortlisted you based on your “' + (app(Lb.id) ? VIDEOS[app(Lb.id).video].title : '') + '” video. They’ll confirm terms before anything ships.',
+      declined: Lb.brand + ' went with other creators this time.'
+    };
+    var relSet = Lb.id === 'kb' ? ['v1', 'v2', 'v3'] : Lb.rel;
+    var L = Object.assign({}, Lb, {
+      hasStatus: !!Lst, status: Lst, stClass: 'st-' + Lst, stLabel: ST[Lst] || '', statusMsg: statusMsg[Lst] || '', canApply: !Lst,
+      relVids: Lb.rel.map(function (id) {
+        var v = VIDEOS[id]; var chosen = s.pick === id && !Lst;
+        return Object.assign({}, v, { chosen: chosen, actionLabel: Lst ? 'Your video' : (chosen ? 'Selected for your application' : 'Select for your application'),
+          pick: function () { if (!self.state.apps[Lb.id]) self.setState({ pick: id }); } });
+      })
+    });
+    var picker = ['v1', 'v2', 'v3', 'v4'].map(function (id) {
+      var v = VIDEOS[id];
+      return Object.assign({}, v, { checked: s.pick === id, relevant: relSet.indexOf(id) > -1, pick: function () { self.setState({ pick: id }); } });
+    });
+    var myApps = Object.keys(s.apps).map(function (id) {
+      var l = all[id], a = s.apps[id];
+      return { title: l.title, brand: l.brand, fee: l.fee, img: l.img, video: VIDEOS[a.video].title, stClass: 'st-' + a.status, stLabel: ST[a.status], open: openL(id) };
+    });
+
+    // ---------- brand applicants ----------
+    var mayaApplied = !!s.apps.kb;
+    var mk = function (o, status) {
+      var below = !owned && o.followersN < minN;
+      return Object.assign({}, o, { status: status, below: below });
+    };
+    var list = [];
+    if (mayaApplied) {
+      var mv = VIDEOS[s.apps.kb.video];
+      list.push(mk({ id: 'maya', name: 'Maya Okafor', first: 'Maya', initials: 'MO', handle: '@mayasdesk', platform: 'TikTok', followers: '24.8K followers', followersN: 24800,
+        metricDate: 'Updated Nov 18, 2026', median: '27.4K', rankWhy: '3 keyboard videos in 90 days', note: s.apps.kb.note, video: mv, fit: mv.fit, isNew: true }, s.apps.kb.status));
+    }
+    list.push(mk(OTHERS.jon, s.others.jon));
+    list.push(mk(OTHERS.tess, s.others.tess));
+    var selId = s.selA && list.some(function (a) { return a.id === s.selA; }) ? s.selA : list[0].id;
+    var setStatus = function (id, st, msg) {
+      return function () {
+        if (id === 'maya') {
+          self.setState({ apps: Object.assign({}, self.state.apps, { kb: Object.assign({}, self.state.apps.kb, { status: st }) }) });
+        } else {
+          self.setState({ others: Object.assign({}, self.state.others, { [id]: st }) });
+        }
+        if (msg) self.say(msg);
+      };
+    };
+    var applicants = list.map(function (a, i) {
+      return Object.assign({}, a, {
+        rank: i + 1, minLabel: fmtK(minN), selected: a.id === selId, stClass: 'st-' + a.status, stLabel: ST[a.status],
+        isNew: !!a.isNew && a.status === 'applied',
+        select: function () { self.setState({ selA: a.id }); }
+      });
+    });
+    var sa = applicants.filter(function (a) { return a.selected; })[0];
+    var sel = Object.assign({}, sa, {
+      hasNote: !!sa.note, isOpen: sa.status === 'applied', isClosed: sa.status !== 'applied',
+      doneMsg: sa.status === 'shortlisted' ? 'Shortlisted. ' + sa.first + ' now sees “Shortlisted” on this application.' : 'Declined. ' + sa.first + ' sees “Declined” on this application.',
+      shortlist: setStatus(sa.id, 'shortlisted', sa.first + ' shortlisted. Their application now shows “Shortlisted.”'),
+      decline: setStatus(sa.id, 'declined', sa.first + ' declined.'),
+      undo: setStatus(sa.id, 'applied', 'Status reset to Applied.')
+    });
+
+    // ---------- demo progress ----------
+    var step1 = s.published, step2 = mayaApplied, step3 = kbSt === 'shortlisted';
+    var nextHint = !step1 ? 'Next: publish the keyboard brief in Brand view.'
+      : !step2 ? 'Next: switch to Creator view and apply as Maya.'
+      : kbSt === 'applied' ? 'Next: switch to Brand view → Applicants and shortlist Maya.'
+      : kbSt === 'shortlisted' ? 'Done: Creator view now shows “Shortlisted.”'
+      : 'Maya was declined. Use Undo in Brand view to try again.';
+
+    var showTabs = s.cScr === 'feed' || s.cScr === 'apps';
+
+    return {
+      isBrand: s.role === 'brand', isCreator: s.role === 'creator',
+      goBrand: function () { self.setState({ role: 'brand' }); },
+      goCreator: function () { var sc = self.state.cScr; self.setState({ role: 'creator', cScr: (sc === 'done' || sc === 'review') ? 'apps' : sc }); },
+      reset: function () { clearTimeout(self._t); self.setState(INITIAL()); },
+      step1: step1, step2: step2, step3: step3, nextHint: nextHint,
+      toast: s.toast, hasToast: !!s.toast, closeToast: function () { self.setState({ toast: '' }); },
+
+      bBuilder: s.bTab === 'builder', bApplicants: s.bTab === 'applicants',
+      toBuilder: function () { self.setState({ bTab: 'builder' }); },
+      toApplicants: function () { self.setState({ bTab: 'applicants' }); },
+      published: s.published, notPublished: !s.published,
+      c: c, on: on, kb: kb,
+      isOwned: owned, isSponsored: !owned, isKeep: keep, isReturn: !keep,
+      postingLong: owned ? 'No post required: video delivered to the brand' : 'Post required on the creator’s channel',
+      typeLabel: owned ? 'Video delivered to brand' : 'Sponsored post',
+      minLabel: fmtK(minN),
+      rankNote: owned ? 'Ranked by relevant portfolio work. Brand-owned video: no follower minimum.' : 'Ranked by relevant portfolio work. Minimum ' + fmtK(minN) + ' followers for sponsored posts.',
+      hasError: !!s.error, error: s.error,
+      publish: function () {
+        var cc = self.state.c;
+        if (!(Number(cc.fee) > 0)) return self.setState({ error: 'Add a flat fee above $0 before publishing.' });
+        if (!String(cc.deliverable).trim()) return self.setState({ error: 'Describe the deliverable before publishing.' });
+        if (!(Number(cc.qty) > 0)) return self.setState({ error: 'Add at least one sample unit.' });
+        self.setState({ published: true, error: '' });
+        self.say('Brief published. Matched creators can see it now.');
+      },
+      applicantCount: list.length, applicants: applicants, sel: sel, mayaMissing: !mayaApplied,
+
+      showTabs: showTabs, cFeedTab: s.cScr !== 'apps', cAppsTab: s.cScr === 'apps',
+      toFeed: function () { self.setState({ cScr: 'feed' }); },
+      toApps: function () { self.setState({ cScr: 'apps' }); },
+      myAppCount: myApps.length, myApps: myApps, noApps: myApps.length === 0,
+      scrFeed: s.cScr === 'feed', scrDetail: s.cScr === 'detail', scrReview: s.cScr === 'review', scrDone: s.cScr === 'done', scrApps: s.cScr === 'apps',
+      catFilters: catFilters, postFilters: postFilters, feed: feed, feedEmpty: feed.length === 0,
+      feedCount: feed.length + (feed.length === 1 ? ' opportunity' : ' opportunities') + ' · sample data',
+      clearFilters: function () { self.setState({ fCat: 'all', fPost: 'any' }); },
+      kbHidden: !s.published && (s.fCat === 'all' || s.fCat === 'Keyboards'),
+      L: L, picker: picker, pickedVid: VIDEOS[s.pick],
+      note: s.note, hasNote: !!String(s.note).trim(),
+      onNote: function (e) { self.setState({ note: e.target.value }); },
+      toReview: function () { self.setState({ cScr: 'review' }); },
+      backToDetail: function () { self.setState({ cScr: 'detail' }); },
+      apply: function () {
+        var id = self.state.listing;
+        var apps = Object.assign({}, self.state.apps);
+        apps[id] = { status: 'applied', video: self.state.pick, note: String(self.state.note).trim() };
+        self.setState({ apps: apps, cScr: 'done', selA: id === 'kb' ? 'maya' : self.state.selA });
+        self.say('Applied. Status: Applied.');
+      },
+      kbStClass: kbSt ? 'st-' + kbSt : 'st-draft', kbStLabel: kbSt ? ST[kbSt] : (s.published ? 'Not applied' : 'Brief not published')
+    };
+  }
+}
+
+/* Standalone renderer for the Deskside demo. Reuses the prototype's Component logic. */
+(function () {
+  var H = [];
+  function h(fn) { H.push(fn); return H.length - 1; }
+  function esc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function on(fn) { return ' data-h="' + h(fn) + '"'; }
+  function pressed(b) { return ' aria-pressed="' + (b ? 'true' : 'false') + '"'; }
+  function chk(b) { return b ? ' checked' : ''; }
+  function sel(a, b) { return a === b ? ' selected' : ''; }
+  var CHECK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>';
+  var BACK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>';
+  var PLAY = function (s) { return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M8 5v14l11-7z"></path></svg>'; };
+  function terms(list) { return list.map(function (t) { return '<dt>' + esc(t.k) + '</dt><dd><p class="v">' + esc(t.v) + '</p><p class="n">' + esc(t.n) + '</p></dd>'; }).join(''); }
+
+  function demobar(v) {
+    return '<header class="demobar" aria-label="Prototype controls">' +
+      '<div style="display:flex;flex-direction:column;gap:2px"><span class="eyebrow">Prototype · sample data</span><span style="font-family:\'Inter Tight\',sans-serif;font-weight:700;font-size:17px">Deskside demo</span></div>' +
+      '<div role="group" aria-label="Demo role" class="seg"><button type="button"' + pressed(v.isBrand) + on(v.goBrand) + '>Brand view · Halden Works</button><button type="button"' + pressed(v.isCreator) + on(v.goCreator) + '>Creator view · Maya Okafor</button></div>' +
+      '<ol class="steps" aria-label="Demo progress"><li data-done="' + v.step1 + '"><span class="n">1</span>Publish brief</li><li data-done="' + v.step2 + '"><span class="n">2</span>Creator applies</li><li data-done="' + v.step3 + '"><span class="n">3</span>Brand shortlists</li></ol>' +
+      '<p class="hint" style="flex:1 1 260px">' + esc(v.nextHint) + '</p>' +
+      '<button type="button" class="linkbtn"' + on(v.reset) + '>Reset demo</button></header>';
+  }
+
+  function builder(v) {
+    var c = v.c, kb = v.kb, o = v.on;
+    var dis = v.published ? ' disabled' : '';
+    var s = '<main class="wrap"><div class="pagehead"><div><p class="eyebrow">New campaign brief</p><h1>' + esc(c.product) + ' · first-impressions campaign</h1></div>' +
+      '<div style="display:flex;gap:10px;align-items:center">' + (v.published ? '<span class="st st-published">Published</span>' : '<span class="st st-draft">Draft</span>') + '<span class="chip sample">Sample data</span></div></div>' +
+      '<div class="cols"><div class="formcol">';
+    if (v.published) s += '<div class="info green" role="status">' + CHECK + '<div><strong>Brief published.</strong> Matched creators can see it now. Fields are locked: after a creator accepts, changes to fee, rights or deliverables need both sides to re-accept.</div></div>';
+    s += '<fieldset' + dis + '><legend class="sr">Campaign brief</legend><div style="display:flex;flex-direction:column;gap:20px">' +
+      '<section class="card section" aria-labelledby="s1"><h2 id="s1"><span class="num">1</span>Product</h2>' +
+      '<div class="grid2"><div class="field"><label for="f-product">Product name</label><input id="f-product" class="input" value="' + esc(c.product) + '"' + on(o.product) + '></div>' +
+      '<div class="field"><label for="f-sku">SKU</label><input id="f-sku" class="input" value="' + esc(c.sku) + '"' + on(o.sku) + '></div></div>' +
+      '<div class="grid2"><div class="field"><label for="f-cat">Category</label><select id="f-cat" class="input"' + on(o.category) + '><option value="Keyboards"' + sel(c.category, 'Keyboards') + '>Keyboards</option><option value="Stands"' + sel(c.category, 'Stands') + '>Stands</option><option value="Organization"' + sel(c.category, 'Organization') + '>Desk organization</option></select></div>' +
+      '<div class="field"><label for="f-compat">Compatibility</label><input id="f-compat" class="input" value="' + esc(c.compat) + '"' + on(o.compat) + '><span class="help">Used to match creators with a compatible setup.</span></div></div>' +
+      '<div class="field"><span class="lab">Product photo</span><div class="photo"><img src="keyboard.svg" alt="Halden Loop 65 keyboard on an oak desk beside a mug and notebook"><div><p style="font-weight:600">loop65-desk.jpg</p><p class="small muted">1200 × 900 · sample image (uploads are off in this demo)</p></div></div></div></section>' +
+      '<section class="card section" aria-labelledby="s2"><h2 id="s2"><span class="num">2</span>Campaign type</h2><div class="opts" role="radiogroup" aria-labelledby="s2">' +
+      '<label class="opt"><input type="radio" name="ctype" value="owned"' + chk(v.isOwned) + on(o.type) + '><div><p class="t">Video delivered to the brand</p><p class="d">Creator sends the file. No post required. Brand uses it under the rights below.</p></div></label>' +
+      '<label class="opt"><input type="radio" name="ctype" value="sponsored"' + chk(v.isSponsored) + on(o.type) + '><div><p class="t">Sponsored post on creator’s channel</p><p class="d">Creator publishes the video with an #ad disclosure.</p></div></label></div>' +
+      (v.isSponsored
+        ? '<div class="grid2"><div class="field"><label for="f-min">Follower minimum</label><div class="affix"><input id="f-min" type="number" min="0" step="1000" value="' + esc(c.followerMin) + '"' + on(o.followerMin) + '><span>followers</span></div><span class="help">Applies to the channel the creator posts on.</span></div><div class="info" style="align-self:end">Applicants below the minimum are flagged, then ranked by relevant portfolio work.</div></div>'
+        : '<div class="info cobalt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M6 12h12M10 18h4"></path></svg><div>No follower minimum. Applicants are ranked by how closely their past videos match this product and format.</div></div>') +
+      '</section>' +
+      '<section class="card section" aria-labelledby="s3"><h2 id="s3"><span class="num">3</span>Offer and deliverable</h2>' +
+      '<div class="grid2"><div class="field"><label for="f-fee">Flat fee</label><div class="affix"><span>$</span><input id="f-fee" type="number" min="0" step="5" value="' + esc(c.fee) + '"' + on(o.fee) + '><span>USD</span></div></div>' +
+      '<div class="field"><span class="lab">Posting requirement</span><div class="readonly">' + esc(v.postingLong) + '</div><span class="help">Set by the campaign type.</span></div></div>' +
+      '<div class="field"><label for="f-del">Deliverable</label><input id="f-del" class="input" value="' + esc(c.deliverable) + '"' + on(o.deliverable) + '></div>' +
+      '<div class="grid2"><div class="field"><label for="f-dl">Delivery deadline</label><div class="affix"><input id="f-dl" type="number" min="1" value="' + esc(c.deadline) + '"' + on(o.deadline) + '><span>days after the sample arrives</span></div></div>' +
+      '<div class="field"><label for="f-rev">Brand review window</label><div class="affix"><input id="f-rev" type="number" min="1" value="' + esc(c.review) + '"' + on(o.review) + '><span>business days</span></div></div></div></section>' +
+      '<section class="card section" aria-labelledby="s4"><h2 id="s4"><span class="num">4</span>Samples and usage rights</h2>' +
+      '<div class="grid2"><div class="field"><label for="f-qty">Sample quantity</label><div class="affix"><input id="f-qty" type="number" min="1" value="' + esc(c.qty) + '"' + on(o.qty) + '><span>units · one per accepted creator</span></div></div>' +
+      '<div class="field"><label for="f-ship">Ships to</label><select id="f-ship" class="input"' + on(o.ship) + '><option value="the contiguous U.S."' + sel(c.ship, 'the contiguous U.S.') + '>Contiguous U.S.</option><option value="all 50 U.S. states"' + sel(c.ship, 'all 50 U.S. states') + '>All 50 U.S. states</option></select><span class="help">Brand pays shipping. Addresses are shared only after acceptance.</span></div></div>' +
+      '<div class="field"><span class="lab" id="own-l">Sample ownership</span><div class="opts" role="radiogroup" aria-labelledby="own-l">' +
+      '<label class="opt"><input type="radio" name="own" value="keep"' + chk(v.isKeep) + on(o.own) + '><div><p class="t">Creator keeps the sample</p><p class="d">No return needed.</p></div></label>' +
+      '<label class="opt"><input type="radio" name="own" value="return"' + chk(v.isReturn) + on(o.own) + '><div><p class="t">Loaner: creator returns it</p><p class="d">Within 14 days. Brand pays return shipping.</p></div></label></div></div>' +
+      '<div class="grid2"><div class="field"><label for="f-use">Content usage rights</label><select id="f-use" class="input"' + on(o.usage) + '><option value="30"' + sel(c.usage, '30') + '>Organic social · 30 days</option><option value="90"' + sel(c.usage, '90') + '>Organic social · 90 days</option><option value="180"' + sel(c.usage, '180') + '>Organic social · 180 days</option></select></div>' +
+      '<div class="field"><span class="lab">Paid advertising rights</span><div class="readonly">Excluded</div><span class="help">Paid ad rights need a separate agreement with a stated duration.</span></div></div></section>' +
+      '</div></fieldset></div>';
+    s += '<aside class="prevcol" aria-label="Live offer preview"><p class="eyebrow">Live preview · what creators see</p>' +
+      '<article class="card fcard"><div class="fimg"><img src="keyboard.svg" alt=""><span class="fee">' + esc(kb.fee) + '</span></div>' +
+      '<div class="fbody"><p class="fbrand"><span class="mark sm" aria-hidden="true">HW</span>Halden Works</p><p class="ftitle">' + esc(c.product) + '</p>' +
+      '<div class="fchips"><span class="chip">' + esc(kb.post) + '</span><span class="chip">' + esc(kb.sample) + '</span></div>' +
+      '<p class="why">' + CHECK + '<span>Example match reason: “You’ve published three keyboard videos in the past 90 days.”</span></p></div>' +
+      '<div class="tsec"><div class="hrow"><h3 class="h3">Offer terms</h3><span class="chip sample">Sample data</span></div><dl class="terms">' + terms(kb.terms) + '</dl></div></article>' +
+      (v.hasError ? '<p class="error" role="alert">' + esc(v.error) + '</p>' : '') +
+      (v.published
+        ? '<button type="button" class="btn primary block"' + on(v.toApplicants) + '>View applicants (' + v.applicantCount + ')</button>'
+        : '<button type="button" class="btn primary block"' + on(v.publish) + '>Publish brief</button><p class="small muted">Creators see these exact terms. Payment and shipment tracking are handled outside this demo.</p>') +
+      '</aside></div></main>';
+    return s;
+  }
+
+  function applicantsView(v) {
+    if (!v.published) return '<main class="wrap"><div class="card empty"><h1 style="font-size:24px">No applicants yet</h1><p class="muted">Publish the keyboard brief so matched creators can apply.</p><button type="button" class="btn primary"' + on(v.toBuilder) + '>Go to campaign builder</button></div></main>';
+    var c = v.c, kb = v.kb, a = v.sel;
+    var s = '<main class="wrap"><div class="pagehead"><div><p class="eyebrow">Applicants · ' + esc(c.product) + '</p><h1>Review applicants</h1><p class="muted" style="margin-top:6px">' + esc(v.rankNote) + '</p></div>' +
+      '<div class="fchips"><span class="chip">' + esc(kb.fee) + ' flat fee</span><span class="chip">' + esc(v.typeLabel) + '</span><span class="chip">' + esc(kb.sample) + '</span><span class="chip sample">Sample data</span></div></div>' +
+      '<div class="split"><div class="alist" role="group" aria-label="Applicants, ranked by relevant portfolio work">';
+    v.applicants.forEach(function (x) {
+      s += '<button type="button" class="aitem"' + pressed(x.selected) + on(x.select) + '><span class="rank" aria-label="Rank ' + x.rank + '">' + x.rank + '</span><span class="avatar">' + esc(x.initials) + '</span>' +
+        '<span style="flex:1;min-width:0;display:block"><span style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="nm">' + esc(x.name) + '</span><span class="st ' + x.stClass + '">' + esc(x.stLabel) + '</span></span>' +
+        '<span class="meta" style="display:block">' + esc(x.handle) + ' · ' + esc(x.platform) + ' · ' + esc(x.followers) + '</span><span class="fit" style="display:block">' + esc(x.rankWhy) + '</span>' +
+        (x.below ? '<span class="warn" style="display:block">Below the ' + esc(x.minLabel) + ' follower minimum</span>' : '') +
+        (x.isNew ? '<span class="chip cobalt" style="margin-top:6px">New application</span>' : '') + '</span></button>';
+    });
+    if (v.mayaMissing) s += '<div class="info" style="font-size:13px">Maya Okafor hasn’t applied yet. Switch to Creator view to apply as Maya.</div>';
+    s += '</div><section class="card apanel" aria-labelledby="ap-name"><div class="ahead"><div style="display:flex;gap:14px;align-items:center"><span class="avatar lg">' + esc(a.initials) + '</span><div><h2 id="ap-name" style="font-size:24px">' + esc(a.name) + '</h2><p class="muted">' + esc(a.handle) + ' · ' + esc(a.platform) + '</p></div></div><span class="st ' + a.stClass + '">' + esc(a.stLabel) + '</span></div>' +
+      '<div class="vfeature"><div style="display:flex;flex-direction:column;gap:8px"><p class="eyebrow">Submitted video</p><span class="thumb"><img src="' + esc(a.video.img) + '" alt="Thumbnail: ' + esc(a.video.title) + '" style="object-position:' + esc(a.video.pos) + '"><span class="plat">' + esc(a.platform) + '</span><span class="play" aria-hidden="true">' + PLAY(20) + '</span><span class="dur">' + esc(a.video.dur) + '</span></span></div>' +
+      '<div class="fitcol"><div><h3 style="font-size:19px;line-height:1.3">“' + esc(a.video.title) + '”</h3><p class="small muted" style="margin-top:4px">' + esc(a.video.dur) + ' · posted ' + esc(a.video.date) + ' · ' + esc(a.video.views) + ' views <span class="selfrep">Self-reported</span></p></div>' +
+      '<div><p class="eyebrow" style="margin-bottom:8px">Why it fits this brief</p><ul class="lists">' + a.fit.map(function (f) { return '<li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F4FD8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg><span>' + esc(f) + '</span></li>'; }).join('') + '</ul></div>' +
+      (a.hasNote ? '<div><p class="eyebrow" style="margin-bottom:6px">Note from ' + esc(a.first) + '</p><p class="quote">' + esc(a.note) + '</p></div>' : '') + '</div></div>' +
+      '<div><p class="eyebrow" style="margin-bottom:10px">Supporting context</p><div class="stats">' +
+      '<div class="stat"><p class="small muted">Platform</p><p class="sv">' + esc(a.platform) + '</p><p class="sn">' + esc(a.handle) + '</p></div>' +
+      '<div class="stat"><p class="small muted">Audience</p><p class="sv">' + esc(a.followers) + '</p><span class="selfrep">Self-reported</span><p class="sn">' + esc(a.metricDate) + '</p></div>' +
+      '<div class="stat"><p class="small muted">Recent views</p><p class="sv">' + esc(a.median) + '</p><span class="selfrep">Self-reported</span><p class="sn">Median of last 10 videos</p></div></div></div>' +
+      '<div class="actions">' + (a.isOpen
+        ? '<button type="button" class="btn primary"' + on(a.shortlist) + '>Shortlist</button><button type="button" class="btn danger"' + on(a.decline) + '>Decline</button><p class="small muted" style="flex:1 1 220px">Shortlisting tells ' + esc(a.first) + ' you’re interested. Terms are confirmed before anything ships.</p>'
+        : '<p style="font-weight:600;flex:1 1 260px">' + esc(a.doneMsg) + '</p><button type="button" class="btn sec"' + on(a.undo) + '>Undo</button>') +
+      '</div></section></div></main>';
+    return s;
+  }
+
+  function brand(v) {
+    return '<div><div class="brandhead"><div style="display:flex;align-items:center;gap:12px"><span class="mark" aria-hidden="true">HW</span><div><p style="font-weight:700">Halden Works</p><p class="small muted">Brand workspace · fictional brand</p></div></div>' +
+      '<nav class="tabs" aria-label="Brand sections"><button type="button"' + pressed(v.bBuilder) + on(v.toBuilder) + '>Campaign builder</button><button type="button"' + pressed(v.bApplicants) + on(v.toApplicants) + '>Applicants' + (v.published ? '<span class="count">' + v.applicantCount + '</span>' : '') + '</button></nav></div>' +
+      (v.bBuilder ? builder(v) : applicantsView(v)) + '</div>';
+  }
+
+  function feedView(v) {
+    var s = '<div class="pbody"><div><h1 class="h2">Matched for you</h1><p class="small muted" style="margin-top:4px">Based on 4 videos from the past 90 days on TikTok</p></div><div class="filters">' +
+      '<div class="frow" role="group" aria-label="Filter by category"><span class="lab" aria-hidden="true">Category</span>' + v.catFilters.map(function (f) { return '<button type="button" class="fchip"' + pressed(f.on) + on(f.pick) + '>' + esc(f.label) + '</button>'; }).join('') + '</div>' +
+      '<div class="frow" role="group" aria-label="Filter by posting requirement"><span class="lab" aria-hidden="true">Posting</span>' + v.postFilters.map(function (f) { return '<button type="button" class="fchip"' + pressed(f.on) + on(f.pick) + '>' + esc(f.label) + '</button>'; }).join('') + '</div></div>' +
+      '<p class="small muted" aria-live="polite">' + esc(v.feedCount) + '</p>';
+    v.feed.forEach(function (l) {
+      s += '<article class="card fcard"><button type="button" class="fbtn"' + on(l.open) + ' aria-label="' + esc(l.title) + ' from ' + esc(l.brand) + ', ' + esc(l.fee) + '. View offer">' +
+        '<span class="fimg"><img src="' + esc(l.img) + '" alt=""><span class="fee">' + esc(l.fee) + '</span>' + (l.hasStatus ? '<span class="stpos st ' + l.stClass + '">' + esc(l.stLabel) + '</span>' : '') + '</span>' +
+        '<span class="fbody"><span class="fbrand"><span class="mark sm" aria-hidden="true">' + esc(l.mark) + '</span>' + esc(l.brand) + '</span><span class="ftitle">' + esc(l.title) + '</span>' +
+        '<span class="fchips"><span class="chip">' + esc(l.post) + '</span><span class="chip">' + esc(l.sample) + '</span></span><span class="why">' + CHECK + '<span>' + esc(l.match) + '</span></span></span></button></article>';
+    });
+    if (v.feedEmpty) s += '<div class="info">No matches for these filters. <button type="button" class="textbtn" style="padding:0;min-height:0"' + on(v.clearFilters) + '>Clear filters</button></div>';
+    if (v.kbHidden) s += '<div class="info cobalt" style="flex-direction:column;gap:8px"><p><strong>A keyboard brief is coming.</strong> Halden Works hasn’t published it yet.</p><button type="button" class="btn sec"' + on(v.goBrand) + '>Switch to Brand view to publish</button></div>';
+    return s + '</div>';
+  }
+
+  function detailView(v) {
+    var L = v.L;
+    var s = '<div class="pbody"><button type="button" class="backbtn"' + on(v.toFeed) + '>' + BACK + 'Opportunities</button>' +
+      '<div class="hero"><img src="' + esc(L.img) + '" alt="' + esc(L.alt) + '"></div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px"><p class="fbrand"><span class="mark sm" aria-hidden="true">' + esc(L.mark) + '</span>' + esc(L.brand) + ' <span class="chip sample" style="margin-left:auto">Sample data</span></p>' +
+      '<h1 class="h2">' + esc(L.title) + '</h1><p class="small muted">' + esc(L.blurb) + '</p>' +
+      '<div class="fchips"><span class="chip cobalt">' + esc(L.fee) + ' flat fee</span><span class="chip">' + esc(L.post) + '</span><span class="chip">' + esc(L.sample) + '</span></div></div>';
+    if (L.hasStatus) s += '<div class="banner ' + L.status + '" role="status"><span class="st ' + L.stClass + '" style="background:#FFFFFF">' + esc(L.stLabel) + '</span><p class="small">' + esc(L.statusMsg) + '</p></div>';
+    s += '<section class="callout" aria-labelledby="why-h"><h2 id="why-h" class="eyebrow" style="color:#1D2E66">Why this matches you</h2>' +
+      '<p class="reason"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg><span>' + esc(L.match) + '</span></p>' +
+      '<p class="small" style="color:#1D2E66">' + esc(L.matchSub) + '</p><div class="vrow">' +
+      L.relVids.map(function (x) {
+        return '<button type="button" class="vcard"' + pressed(x.chosen) + on(x.pick) + ' aria-label="' + esc(x.title) + '. ' + esc(x.actionLabel) + '"><span class="thumb short"><img src="' + esc(x.img) + '" alt="" style="object-position:' + esc(x.pos) + '"><span class="play" aria-hidden="true">' + PLAY(16) + '</span><span class="dur">' + esc(x.dur) + '</span></span><span class="vt">' + esc(x.title) + '</span><span class="vm">' + esc(x.date) + ' · ' + esc(x.views) + ' views</span></button>';
+      }).join('') + '</div></section>' +
+      '<section class="card" aria-labelledby="terms-h" style="padding:4px 16px 12px"><div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0 6px"><h2 id="terms-h" class="h3">Offer terms</h2><span class="small muted">Same terms the brand sees</span></div>' +
+      '<dl class="terms">' + terms(L.terms) + '<dt>Works with</dt><dd><p class="v">' + esc(L.compat) + '</p></dd></dl></section>';
+    if (L.canApply) {
+      s += '<section class="card" aria-labelledby="apply-h" style="padding:16px;display:flex;flex-direction:column;gap:14px"><h2 id="apply-h" class="h3">Apply with a past video</h2><div class="pick" role="radiogroup" aria-labelledby="apply-h">' +
+        v.picker.map(function (p) {
+          return '<label class="pitem"><input type="radio" name="vid" value="' + p.id + '"' + chk(p.checked) + on(p.pick) + '><span class="thumb"><img src="' + esc(p.img) + '" alt="" style="object-position:' + esc(p.pos) + '"></span>' +
+            '<span style="flex:1;min-width:0"><span class="pt" style="display:block">' + esc(p.title) + '</span><span class="pm" style="display:block">' + esc(p.date) + ' · ' + esc(p.dur) + ' · ' + esc(p.views) + ' views</span></span>' +
+            (p.relevant ? '<span class="chip cobalt">Relevant</span>' : '') + '</label>';
+        }).join('') + '</div>' +
+        '<div class="field"><label for="f-note">Note to ' + esc(L.brand) + ' (optional)</label><textarea id="f-note" class="input" placeholder="One line on your angle for this product"' + on(v.onNote) + '>' + esc(v.note) + '</textarea></div>' +
+        '<button type="button" class="btn primary block"' + on(v.toReview) + '>Review application</button></section>';
+    }
+    return s + '</div>';
+  }
+
+  function reviewView(v) {
+    var L = v.L, p = v.pickedVid;
+    return '<div class="pbody"><button type="button" class="backbtn"' + on(v.backToDetail) + '>' + BACK + 'Edit application</button>' +
+      '<div><p class="eyebrow">Step 2 of 2</p><h1 class="h2" style="margin-top:4px">Review before you apply</h1><p class="small muted" style="margin-top:4px">' + esc(L.title) + ' · ' + esc(L.brand) + '</p></div>' +
+      '<section class="card" style="padding:14px;display:flex;gap:14px;align-items:flex-start"><span class="thumb" style="width:84px;flex:none"><img src="' + esc(p.img) + '" alt="" style="object-position:' + esc(p.pos) + '"><span class="dur">' + esc(p.dur) + '</span></span>' +
+      '<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><p class="eyebrow">Your video</p><p style="font-weight:600">' + esc(p.title) + '</p><p class="small muted">' + esc(p.date) + ' · ' + esc(p.views) + ' views</p>' +
+      (v.hasNote ? '<p class="small" style="margin-top:4px">Note: “' + esc(v.note) + '”</p>' : '') + '</div></section>' +
+      '<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px"><h2 class="h3">You receive</h2><ul class="lists">' +
+      L.receive.map(function (r) { return '<li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E6B35" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>' + esc(r) + '</span></li>'; }).join('') +
+      '</ul><h2 class="h3" style="margin-top:8px">You owe</h2><ul class="lists">' +
+      L.owe.map(function (r) { return '<li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1D1D1F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg><span>' + esc(r) + '</span></li>'; }).join('') +
+      '</ul></section>' +
+      '<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:6px"><h2 class="h3">Shared with ' + esc(L.brand) + '</h2><p class="small">Maya Okafor · @mayasdesk · TikTok · 24.8K followers <span class="selfrep">Self-reported</span></p><p class="small muted">Your shipping address is shared only if you’re accepted.</p></section>' +
+      '<button type="button" class="btn primary block"' + on(v.apply) + '>Apply</button><button type="button" class="btn sec block"' + on(v.backToDetail) + '>Edit</button></div>';
+  }
+
+  function doneView(v) {
+    var L = v.L;
+    return '<div class="pbody"><div class="done" role="status"><span class="ok" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>' +
+      '<h1 class="h2">Application sent</h1><span class="st ' + L.stClass + '">' + esc(L.stLabel) + '</span><p class="muted">' + esc(L.brand) + ' reviews applicants for the ' + esc(L.title) + '. If they shortlist you, this application will show “Shortlisted.”</p></div>' +
+      '<section class="card" style="padding:4px 16px 12px"><dl class="terms"><dt>Video</dt><dd><p class="v">' + esc(v.pickedVid.title) + '</p></dd><dt>Fee</dt><dd><p class="v">' + esc(L.fee) + ' flat fee</p></dd><dt>Sample</dt><dd><p class="v">' + esc(L.sample) + '</p></dd></dl></section>' +
+      '<button type="button" class="btn primary block"' + on(v.toApps) + '>View my applications</button><button type="button" class="btn sec block"' + on(v.toFeed) + '>Back to opportunities</button></div>';
+  }
+
+  function appsView(v) {
+    var s = '<div class="pbody"><h1 class="h2">My applications</h1>';
+    v.myApps.forEach(function (m) {
+      s += '<button type="button" class="arow"' + on(m.open) + '><img src="' + esc(m.img) + '" alt=""><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-weight:600">' + esc(m.title) + '</span><span class="small muted">' + esc(m.brand) + ' · ' + esc(m.fee) + ' · applied with “' + esc(m.video) + '”</span><span class="st ' + m.stClass + '" style="align-self:flex-start">' + esc(m.stLabel) + '</span></span></button>';
+    });
+    if (v.noApps) s += '<div class="info">You haven’t applied to anything yet.</div><button type="button" class="btn sec"' + on(v.toFeed) + '>Browse opportunities</button>';
+    return s + '</div>';
+  }
+
+  function creator(v) {
+    var body = v.scrFeed ? feedView(v) : v.scrDetail ? detailView(v) : v.scrReview ? reviewView(v) : v.scrDone ? doneView(v) : appsView(v);
+    return '<div class="cstage"><div class="phone" role="region" aria-label="Creator app, mobile view">' +
+      '<div class="phead"><p class="wordmark">Desk<span>side</span></p><div style="display:flex;align-items:center;gap:8px"><span class="small muted">@mayasdesk</span><span class="avatar" aria-hidden="true">MO</span></div></div>' +
+      (v.showTabs ? '<nav class="ptabs" aria-label="Creator sections"><button type="button"' + pressed(v.cFeedTab) + on(v.toFeed) + '>Opportunities</button><button type="button"' + pressed(v.cAppsTab) + on(v.toApps) + '>My applications (' + v.myAppCount + ')</button></nav>' : '') +
+      body + '</div>' +
+      '<aside class="side" aria-label="About this view"><div class="card"><p class="eyebrow">Creator view</p><p style="font-weight:600;margin-top:6px">Mobile-first, shown at phone width</p><p class="small muted" style="margin-top:6px">Signed in as Maya Okafor, a fictional desk-setup creator: TikTok, 24.8K followers (self-reported), 4 videos in the past 90 days.</p></div>' +
+      '<div class="card"><p class="eyebrow">Application status</p><p style="margin-top:8px"><span class="st ' + v.kbStClass + '">' + esc(v.kbStLabel) + '</span></p><p class="small muted" style="margin-top:8px">Keyboard brief from Halden Works. Updates when the brand acts.</p></div></aside></div>';
+  }
+
+  // ---- mount ----
+  var root = document.getElementById('root');
+  var comp = new Component({});
+  var lastScreen = '';
+  window.__dcRender = function () {
+    var ae = document.activeElement, fid = ae && ae.id, ss = null, se = null;
+    try { if (fid && ae.selectionStart != null) { ss = ae.selectionStart; se = ae.selectionEnd; } } catch (e) {}
+    H = [];
+    var v = comp.renderVals();
+    var html = demobar(v) + '<div class="sr" aria-live="polite">' + esc(v.toast) + '</div>' +
+      (v.hasToast ? '<div class="toast" role="status"><span>' + esc(v.toast) + '</span><button type="button" aria-label="Dismiss message"' + on(v.closeToast) + '>Dismiss</button></div>' : '') +
+      (v.isBrand ? brand(v) : creator(v));
+    root.innerHTML = html;
+    var screen = comp.state.role + comp.state.bTab + comp.state.cScr + comp.state.listing;
+    if (screen !== lastScreen && lastScreen) window.scrollTo(0, 0);
+    lastScreen = screen;
+    if (fid) { var el = document.getElementById(fid); if (el) { el.focus(); try { if (ss != null) el.setSelectionRange(ss, se); } catch (e) {} } }
+  };
+  function fire(e) {
+    var t = e.target.closest('[data-h]'); if (!t) return;
+    var fn = H[Number(t.getAttribute('data-h'))]; if (!fn) return;
+    var tag = t.tagName;
+    if (e.type === 'click' && (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA')) return;
+    if (e.type === 'input' && !(tag === 'INPUT' || tag === 'TEXTAREA')) return;
+    if (e.type === 'change' && tag !== 'SELECT' && !(tag === 'INPUT' && t.type === 'radio')) return;
+    fn(e);
+  }
+  root.addEventListener('click', fire);
+  root.addEventListener('input', fire);
+  root.addEventListener('change', fire);
+  window.__dcRender();
+})();
+
+</script>
+</body>
+</html>
