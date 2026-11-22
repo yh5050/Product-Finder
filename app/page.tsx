@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BASE_PATH } from "@/lib/data";
-import { dealStatus, initialState, kbTerms, screeningKey, type Lane, type State } from "@/lib/model";
+import { applicants, dealStatus, initialState, kbTerms, screeningKey, type Lane, type State } from "@/lib/model";
 import { replay, type NegotiationEvent } from "@/lib/scripts";
 import { baselineRubric } from "@/lib/rubric";
 import { applicantPool, requirements, screen, toView, type ScreeningView } from "@/lib/screening";
@@ -90,12 +90,21 @@ export default function Home() {
     });
   };
 
-  const runNegotiation = async () => {
+  const runNegotiation = async (only?: string[]) => {
     const cur = stateRef.current;
-    const ids = ["maya", "jon", "tess"].filter((id) => (id === "maya" ? cur.apps.kb?.status : cur.others[id as "jon" | "tess"]) === "shortlisted");
+    // The brand agent talks to every finalist the brand hasn't declined, all at once.
+    const pool = applicants(cur).filter((a) => a.status !== "declined").map((a) => a.id);
+    const ids = only ? pool.filter((x) => only.includes(x)) : pool;
     if (!ids.length) return;
-    const id = ++runId.current;
-    set({ negRunning: true, negLive: null, research: null, news: null, negNotice: "", lanes: Object.fromEntries(ids.map((k) => [k, { turns: [], thinking: null }])) });
+    const id = only && cur.negRunning ? runId.current : ++runId.current;
+    const fresh = Object.fromEntries(ids.map((k) => [k, { turns: [], thinking: null }]));
+    set((prev) => ({
+      negRunning: true,
+      ...(only ? {} : { negLive: null, research: null, news: null, negNotice: "" }),
+      lanes: only ? { ...prev.lanes, ...fresh } : fresh,
+      apps: ids.includes("maya") && prev.apps.kb ? { ...prev.apps, kb: { ...prev.apps.kb, status: "shortlisted" } } : prev.apps,
+      others: { ...prev.others, ...(Object.fromEntries(ids.filter((k) => k !== "maya").map((k) => [k, "shortlisted"])) as Partial<State["others"]>) },
+    }));
     const opening = kbTerms(cur);
     const body = { brand: cur.c.brand, product: cur.c.product, type: cur.c.type, opening, maxFee: Number(cur.c.maxFee), creatorIds: ids, mayaVideo: cur.apps.kb?.video, screeningId: cur.screening?.screeningId ?? null };
     const send = (ev: NegotiationEvent) => onEvent(ev, id);
@@ -118,6 +127,7 @@ export default function Home() {
       // Static hosting (GitHub Pages) has no API routes: play the scripted negotiation in the browser.
       send({ type: "mode", live: false });
       await replay(ids, opening, cur.c.brand, cur.c.product, send, Number(cur.c.maxFee) || Infinity);
+      if (runId.current === id) set({ negRunning: false });
     }
   };
 

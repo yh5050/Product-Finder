@@ -10,7 +10,7 @@ export type Ctx = {
   publish: () => void;
   apply: () => void;
   setApplicantStatus: (id: string, status: "applied" | "shortlisted" | "declined", msg?: string) => void;
-  runNegotiation: () => void;
+  runNegotiation: (only?: string[]) => void;
   approve: (id: string, side: "brand" | "creator") => void;
   runScreening: () => void;
 };

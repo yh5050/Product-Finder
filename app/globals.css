@@ -283,3 +283,14 @@ details summary{cursor:pointer;font-weight:600;color:#1F4FD8;min-height:32px;dis
 .app .textbtn{color:#1F4FD8}
 .app .textbtn[disabled]{color:#5E5B55}
 .app a.linkbtn{display:inline-flex;align-items:center}
+.lanes{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+@media (min-width:900px){.lanes{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.lane{height:640px}
+.livedot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#2FBF71;margin-right:6px;vertical-align:middle;animation:livepulse 1.4s ease-in-out infinite}
+.st-negotiating .livedot{background:#C77A1A}
+@keyframes livepulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+.caret{display:inline-block;width:2px;height:1em;margin-left:2px;background:currentColor;vertical-align:-2px;animation:blink 1s infinite}
+@media (prefers-reduced-motion:reduce){.livedot,.caret{animation:none}}
+.st.live::before{animation:livepulse 1.4s ease-in-out infinite}
+.lane.pending{border-style:dashed;background:#FBFAF7}
+@media (prefers-reduced-motion:reduce){.st.live::before{animation:none}}

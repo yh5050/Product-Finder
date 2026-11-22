@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { campaignTerms, fmtK, img, type Campaign } from "@/lib/data";
 import { applicants, dealStatus, listings, screeningKey, type Lane, type RankedApplicant } from "@/lib/model";
 import type { Rubric } from "@/lib/rubric";
@@ -12,7 +12,7 @@ import { Check, SelfReported, Status, TermsList, Thumb } from "./ui";
 export default function BrandView({ ctx }: { ctx: Ctx }) {
   const { s, set } = ctx;
   const count = applicants(s).length;
-  const shortlisted = applicants(s).filter((a) => a.status === "shortlisted").length;
+  const shortlisted = applicants(s).filter((a) => a.status !== "declined").length;
   const tabs: [typeof s.bTab, string, number | null][] = [
     ["builder", "Campaign builder", null],
     ["applicants", "Applicants", s.published && s.screening ? count : null],
@@ -508,18 +508,40 @@ function researchLabel(r: NonNullable<Ctx["s"]["research"]>) {
 }
 
 function Negotiation({ ctx }: { ctx: Ctx }) {
-  const { s, set, runNegotiation, approve } = ctx;
-  const list = applicants(s).filter((a) => a.status === "shortlisted");
-  if (!s.published || !list.length)
+  const { s, set, runNegotiation, approve, runScreening } = ctx;
+  const list = applicants(s).filter((a) => a.status !== "declined");
+  const key = screeningKey(s);
+  const missing = list.filter((a) => !s.lanes[a.id]).map((a) => a.id);
+  const autoFor = useRef("");
+
+  // Keep screening current, then start every creator agent automatically; a creator who joins later gets their own lane.
+  useEffect(() => {
+    if (!s.published) return;
+    if ((!s.screening || s.screeningFor !== key) && !s.screenRunning) { runScreening(); return; }
+    if (s.screenRunning || !missing.length) return;
+    const sig = `${key}|${missing.join(",")}`;
+    if (autoFor.current === sig) return;
+    autoFor.current = sig;
+    const anyLane = list.some((a) => s.lanes[a.id]);
+    runNegotiation(anyLane ? missing : undefined);
+  }, [s.published, s.screening, s.screeningFor, s.screenRunning, key, missing.join(","), list.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!s.published || (!list.length && !s.screenRunning && s.screening))
     return (
       <main className="wrap">
         <div className="card empty">
-          <h1 style={{ fontSize: 24 }}>Shortlist creators first</h1>
-          <p className="muted">Your agent negotiates only with creators you’ve shortlisted.</p>
+          <h1 style={{ fontSize: 24 }}>{s.published ? "No finalists to negotiate with" : "Publish the brief first"}</h1>
+          <p className="muted">{s.published ? "Every finalist was declined. Review applicants to bring one back." : "Agents start negotiating with every finalist as soon as screening finishes."}</p>
           <button type="button" className="btn primary" onClick={() => set({ bTab: s.published ? "applicants" : "builder" })}>
             {s.published ? "Review applicants" : "Go to campaign builder"}
           </button>
         </div>
+      </main>
+    );
+  if (!list.length)
+    return (
+      <main className="wrap">
+        <div className="card empty"><p className="muted">Screening 1,000 applicants to find finalists…</p></div>
       </main>
     );
 
@@ -535,14 +557,17 @@ function Negotiation({ ctx }: { ctx: Ctx }) {
           <span className="mark" style={{ background: "#F5F2EC", color: "#1D1D1F" }} aria-hidden="true">HW</span>
           <div>
             <p style={{ fontWeight: 700 }}>Halden Works brand agent</p>
-            <p className="small" style={{ color: "#C9C5BC" }}>Negotiates with each shortlisted creator’s agent in parallel · fee cap ${s.c.maxFee} (private)</p>
+            <p className="small" style={{ color: "#C9C5BC" }}>
+              {s.negRunning && <span className="livedot" aria-hidden="true" />}
+              {list.length} creator agents{s.negRunning ? " · negotiating live" : ""} · fee cap ${s.c.maxFee} (private)
+            </p>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {started && <span className={`mode ${s.negLive ? "live" : ""}`}>{s.negLive === null ? "connecting…" : s.negLive ? "Live Claude agents" : "Scripted replay"}</span>}
           {s.negLive && s.research && <span className={`mode ${researchLabel(s.research).cls === "live" ? "live" : ""}`} title={s.research.sources.map((x) => x.url).join("\n")}>{researchLabel(s.research).text}</span>}
           {s.negLive && s.news && <span className={`mode ${s.news.status === "live" ? "live" : ""}`}>Creator agents: {s.news.status === "live" ? `${s.news.results.length} launch sources` : "no live news"}</span>}
-          <button type="button" className="btn primary" disabled={s.negRunning} onClick={runNegotiation}>
+          <button type="button" className="btn primary" disabled={s.negRunning} onClick={() => runNegotiation()}>
             {s.negRunning ? "Negotiating…" : started ? "Re-run agents" : `Start agents (${list.length})`}
           </button>
         </div>
@@ -560,6 +585,22 @@ function Negotiation({ ctx }: { ctx: Ctx }) {
         {list.map((a) => (
           <LaneView key={a.id} a={a} lane={s.lanes[a.id]} baseDeadline={base.deadline} baseUsage={base.usageRights} basePayment={base.payment} onApprove={() => approve(a.id, "brand")} />
         ))}
+        {!s.apps.kb && (
+          <section className="card lane pending" aria-label="Maya’s agent, waiting to join">
+            <div className="lh">
+              <span className="avatar">MO</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 700, fontSize: 14 }}>Maya’s agent</p>
+                <p className="small muted">@mayasdesk · 24.8K followers</p>
+              </div>
+              <span className="st st-draft">Not applied</span>
+            </div>
+            <div className="chat" style={{ justifyContent: "center", alignItems: "center", textAlign: "center", gap: 12 }}>
+              <p className="small muted" style={{ maxWidth: 240 }}>Maya hasn’t applied yet. When she does, screening re-runs and her agent joins this negotiation automatically.</p>
+              <button type="button" className="btn primary" onClick={() => set({ role: "creator" })}>Apply as Maya →</button>
+            </div>
+          </section>
+        )}
       </div>
 
       <div className="card summary">
@@ -573,6 +614,18 @@ function Negotiation({ ctx }: { ctx: Ctx }) {
   );
 }
 
+/** Reveals a new agent message word by word, so each lane reads like a live chat. */
+function Typed({ text, onTick }: { text: string; onTick?: () => void }) {
+  const words = text.split(" ");
+  const [k, setK] = useState(() => (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? words.length : 0));
+  useEffect(() => {
+    if (k >= words.length) return;
+    const t = setTimeout(() => { setK((x) => x + 1); onTick?.(); }, 45);
+    return () => clearTimeout(t);
+  }, [k, words.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <>{words.slice(0, k).join(" ")}{k < words.length && <span className="caret" aria-hidden="true" />}</>;
+}
+
 function LaneView({ a, lane, baseDeadline, baseUsage, basePayment, onApprove }: { a: RankedApplicant; lane?: Lane; baseDeadline: string; baseUsage: string; basePayment: string; onApprove: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const n = lane?.turns.length ?? 0;
@@ -580,7 +633,7 @@ function LaneView({ a, lane, baseDeadline, baseUsage, basePayment, onApprove }: 
     box.current?.scrollTo({ top: box.current.scrollHeight, behavior: "smooth" });
   }, [n, lane?.thinking]);
   const round = Math.ceil((n + 1) / 2);
-  const pill = !lane ? null : lane.outcome === "agreed" ? <span className="st st-agreed">Agreed</span> : lane.outcome === "failed" ? <span className="st st-nodeal">Agent error</span> : lane.outcome === "no-deal" || lane.outcome === "walked" ? <span className="st st-nodeal">No deal</span> : <span className="st st-negotiating">Round {round}</span>;
+  const pill = !lane ? null : lane.outcome === "agreed" ? <span className="st st-agreed">Agreed</span> : lane.outcome === "failed" ? <span className="st st-nodeal">Agent error</span> : lane.outcome === "no-deal" || lane.outcome === "walked" ? <span className="st st-nodeal">No deal</span> : <span className="st st-negotiating live">Round {round}</span>;
 
   return (
     <section className="card lane" aria-label={`Negotiation with ${a.name}`}>
@@ -597,7 +650,7 @@ function LaneView({ a, lane, baseDeadline, baseUsage, basePayment, onApprove }: 
         {lane?.turns.map((t, i) => (
           <div key={i} className={`bubble ${t.from} pop`}>
             <p className="who">{t.from === "brand" ? "Halden agent" : `${a.first}’s agent`} · {t.status}{t.usedResearch ? " · used Research" : ""}</p>
-            <p>{t.text}</p>
+            <p>{i === n - 1 && !lane.outcome ? <Typed text={t.text} onTick={() => box.current?.scrollTo({ top: box.current.scrollHeight })} /> : t.text}</p>
             <SourceChips sources={t.sources ?? []} dark={t.from === "creator"} />
             <div className="tchips">
               <span className={`tchip ${t.status === "accept" ? "ok" : ""}`}>${t.terms.fee}</span>
