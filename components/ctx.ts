@@ -12,4 +12,5 @@ export type Ctx = {
   setApplicantStatus: (id: string, status: "applied" | "shortlisted" | "declined", msg?: string) => void;
   runNegotiation: () => void;
   approve: (id: string, side: "brand" | "creator") => void;
+  runScreening: () => void;
 };

@@ -6,7 +6,7 @@ import "@fontsource/inter-tight/700.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Product Finder · creator marketplace demo",
+  title: "Unboxed · creator marketplace demo",
   description:
     "Clickable demo: a brand publishes a keyboard brief, a creator applies with a past video, AI screening ranks applicants, and brand and creator agents negotiate terms. Sample data only.",
 };

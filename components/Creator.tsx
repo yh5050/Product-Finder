@@ -15,7 +15,7 @@ export default function CreatorView({ ctx }: { ctx: Ctx }) {
     <div className="cstage">
       <div className="phone" role="region" aria-label="Creator app, mobile view">
         <div className="phead">
-          <p className="wordmark">Product<span>Finder</span></p>
+          <p className="wordmark">Un<span>boxed</span></p>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span className="small muted">@mayasdesk</span>
             <span className="avatar" aria-hidden="true">MO</span>

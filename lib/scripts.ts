@@ -1,19 +1,29 @@
 import type { Terms } from "./data";
+import type { Evidence, LiveStatus } from "./youcom";
 
 export type Turn = {
   from: "brand" | "creator";
   text: string;
   terms: Terms;
   status: "offer" | "counter" | "accept" | "walk";
+  /** The live evidence the agent says this message relied on. Replay turns have none. */
+  sources: Evidence[];
+  usedResearch?: boolean;
 };
+
+export type ResearchEvent = { status: LiveStatus; content: Record<string, unknown> | null; sources: Evidence[]; error?: string; seconds?: number };
 
 /** Events streamed by /api/negotiate (and replayed locally when no server is available). */
 export type NegotiationEvent =
   | { type: "mode"; live: boolean }
   | { type: "thinking"; creatorId: string; from: "brand" | "creator" }
   | { type: "turn"; creatorId: string; turn: Turn }
-  | { type: "done"; creatorId: string; outcome: "agreed" | "no-deal"; terms?: Terms }
+  | { type: "done"; creatorId: string; outcome: "agreed" | "no-deal" | "walked" | "failed"; terms?: Terms }
   | { type: "error"; creatorId: string; message: string }
+  | ({ type: "research" } & ResearchEvent)
+  | { type: "creatorEvidence"; status: LiveStatus; results: Evidence[]; error?: string }
+  | { type: "notice"; message: string }
+  | { type: "fatal"; message: string }
   | { type: "end" };
 
 const addDays = (deadline: string, extra: number) => {
@@ -28,25 +38,25 @@ export function scriptFor(creatorId: string, base: Terms, brand: string, product
     const ask = { ...base, fee: f + 50, deadline: addDays(base.deadline, 4) };
     const meet = { ...ask, fee: Math.max(f, Math.min(f + 25, maxFee)) };
     return [
-      { from: "brand", status: "offer", terms: base, text: `Hi Maya! Your first-60-seconds video is exactly the format we want for the ${product}. $${f} flat, you keep the board. Quick question: how many of your viewers are on a Mac?` },
-      { from: "creator", status: "counter", terms: ask, text: `About 70%, so I’d open with Bluetooth pairing to a MacBook, then a sound test. Since ${brand} can reuse the video, my rate is $${f + 50}, and I need 4 extra days to finish another shoot.` },
-      { from: "brand", status: "counter", terms: meet, text: `Love the Mac angle, and the extra days work. Can we meet at $${meet.fee}?` },
-      { from: "creator", status: "accept", terms: meet, text: `Deal at $${meet.fee} with the extra 4 days. I’ll send a shot list once Maya signs off.` },
+      { sources: [], from: "brand", status: "offer", terms: base, text: `Hi Maya! Your first-60-seconds video is exactly the format we want for the ${product}. $${f} flat, you keep the board. Quick question: how many of your viewers are on a Mac?` },
+      { sources: [], from: "creator", status: "counter", terms: ask, text: `About 70%, so I’d open with Bluetooth pairing to a MacBook, then a sound test. Since ${brand} can reuse the video, my rate is $${f + 50}, and I need 4 extra days to finish another shoot.` },
+      { sources: [], from: "brand", status: "counter", terms: meet, text: `Love the Mac angle, and the extra days work. Can we meet at $${meet.fee}?` },
+      { sources: [], from: "creator", status: "accept", terms: meet, text: `Deal at $${meet.fee} with the extra 4 days. I’ll send a shot list once Maya signs off.` },
     ];
   }
   if (creatorId === "jon") {
     const ask = { ...base, deadline: addDays(base.deadline, 2), deliverable: `${base.deliverable}; may mention one honest con` };
     return [
-      { from: "brand", status: "offer", terms: base, text: `Hey Jon, your MacBook desk video caught our eye. $${f} for a first-impressions video, you keep the board. Would you A/B the sound against your current keyboard?` },
-      { from: "creator", status: "counter", terms: ask, text: `Yes, same mic and desk, side by side. $${f} works if I can name one honest con on camera and get 2 extra days.` },
-      { from: "brand", status: "accept", terms: ask, text: "Honest takes are why we picked you. One con and 2 extra days, agreed." },
+      { sources: [], from: "brand", status: "offer", terms: base, text: `Hey Jon, your MacBook desk video caught our eye. $${f} for a first-impressions video, you keep the board. Would you A/B the sound against your current keyboard?` },
+      { sources: [], from: "creator", status: "counter", terms: ask, text: `Yes, same mic and desk, side by side. $${f} works if I can name one honest con on camera and get 2 extra days.` },
+      { sources: [], from: "brand", status: "accept", terms: ask, text: "Honest takes are why we picked you. One con and 2 extra days, agreed." },
     ];
   }
   const ask = { ...base, payment: "Within 7 days of approval" };
   return [
-    { from: "brand", status: "offer", terms: base, text: `Hi Tess! Your quiet-office video is the use case we want. $${f}, 45–60 seconds, keep the board. What would you show in the first 3 seconds?` },
-    { from: "creator", status: "counter", terms: ask, text: "A close-up of the switches in a silent office, then the sound test. Terms look good. Could payment land within 7 days of approval instead of net 30?" },
-    { from: "brand", status: "accept", terms: ask, text: "Absolutely, 7-day payment after approval. Welcome aboard!" },
+    { sources: [], from: "brand", status: "offer", terms: base, text: `Hi Tess! Your quiet-office video is the use case we want. $${f}, 45–60 seconds, keep the board. What would you show in the first 3 seconds?` },
+    { sources: [], from: "creator", status: "counter", terms: ask, text: "A close-up of the switches in a silent office, then the sound test. Terms look good. Could payment land within 7 days of approval instead of net 30?" },
+    { sources: [], from: "brand", status: "accept", terms: ask, text: "Absolutely, 7-day payment after approval. Welcome aboard!" },
   ];
 }
 

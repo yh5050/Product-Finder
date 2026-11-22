@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BASE_PATH } from "@/lib/data";
-import { dealStatus, initialState, kbTerms, type Lane, type State } from "@/lib/model";
+import { dealStatus, initialState, kbTerms, screeningKey, type Lane, type State } from "@/lib/model";
 import { replay, type NegotiationEvent } from "@/lib/scripts";
+import { baselineRubric } from "@/lib/rubric";
+import { applicantPool, requirements, screen, toView, type ScreeningView } from "@/lib/screening";
 import type { Ctx, Patch } from "@/components/ctx";
 import BrandView from "@/components/Brand";
 import CreatorView from "@/components/Creator";
@@ -67,19 +69,24 @@ export default function Home() {
 
   const onEvent = (ev: NegotiationEvent, id: number) => {
     if (runId.current !== id) return;
-    if (ev.type === "mode") return set({ negLive: ev.live });
+    if (ev.type === "mode") return set(ev.live ? { negLive: true, research: { status: "off", content: null, sources: [], pending: true } } : { negLive: false, research: null });
     if (ev.type === "end") return set({ negRunning: false });
+    if (ev.type === "research") return set({ research: { status: ev.status, content: ev.content, sources: ev.sources, error: ev.error, seconds: ev.seconds } });
+    if (ev.type === "creatorEvidence") return set({ news: { status: ev.status, results: ev.results, error: ev.error } });
+    if (ev.type === "notice") return set({ negNotice: ev.message });
+    if (ev.type === "fatal") return set({ negNotice: ev.message, negRunning: false });
+    const cid = ev.creatorId;
     set((prev) => {
-      const l: Lane = { ...(prev.lanes[ev.creatorId] ?? { turns: [], thinking: null }) };
+      const l: Lane = { ...(prev.lanes[cid] ?? { turns: [], thinking: null }) };
       if (ev.type === "thinking") l.thinking = ev.from;
       if (ev.type === "turn") { l.turns = [...l.turns, ev.turn]; l.thinking = null; }
       if (ev.type === "done") {
         l.outcome = ev.outcome; l.terms = ev.terms; l.thinking = null;
         // Seeded creators accept on their side automatically; Maya accepts in the creator view.
-        if (ev.creatorId !== "maya" && ev.outcome === "agreed") l.creatorOk = true;
+        if (cid !== "maya" && ev.outcome === "agreed") l.creatorOk = true;
       }
       if (ev.type === "error") l.error = ev.message;
-      return { lanes: { ...prev.lanes, [ev.creatorId]: l } };
+      return { lanes: { ...prev.lanes, [cid]: l } };
     });
   };
 
@@ -88,9 +95,9 @@ export default function Home() {
     const ids = ["maya", "jon", "tess"].filter((id) => (id === "maya" ? cur.apps.kb?.status : cur.others[id as "jon" | "tess"]) === "shortlisted");
     if (!ids.length) return;
     const id = ++runId.current;
-    set({ negRunning: true, negLive: null, lanes: Object.fromEntries(ids.map((k) => [k, { turns: [], thinking: null }])) });
+    set({ negRunning: true, negLive: null, research: null, news: null, negNotice: "", lanes: Object.fromEntries(ids.map((k) => [k, { turns: [], thinking: null }])) });
     const opening = kbTerms(cur);
-    const body = { brand: cur.c.brand, product: cur.c.product, type: cur.c.type, opening, maxFee: Number(cur.c.maxFee), creatorIds: ids, mayaVideo: cur.apps.kb?.video };
+    const body = { brand: cur.c.brand, product: cur.c.product, type: cur.c.type, opening, maxFee: Number(cur.c.maxFee), creatorIds: ids, mayaVideo: cur.apps.kb?.video, screeningId: cur.screening?.screeningId ?? null };
     const send = (ev: NegotiationEvent) => onEvent(ev, id);
     try {
       const res = await fetch(`${BASE_PATH}/api/negotiate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -114,6 +121,37 @@ export default function Home() {
     }
   };
 
+  const screenRun = useRef(0);
+  const runScreening = useCallback(async () => {
+    const cur = stateRef.current;
+    const key = screeningKey(cur);
+    const id = ++screenRun.current;
+    set({ screenRunning: true, screeningFor: key });
+    const started = Date.now();
+    let view: ScreeningView;
+    try {
+      const res = await fetch(`${BASE_PATH}/api/screen`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mayaApplied: !!cur.apps.kb, type: cur.c.type, followerMin: Number(cur.c.followerMin), product: cur.c.product }),
+      });
+      if (!res.ok || !(res.headers.get("content-type") ?? "").includes("json")) throw new Error("no server");
+      view = await res.json();
+    } catch {
+      // Static hosting (GitHub Pages): screen in the browser on the starting criteria, labeled as such.
+      const rubric = baselineRubric("off", "Live search needs the server version of this app.");
+      const result = screen(applicantPool(!!cur.apps.kb), rubric, requirements(cur.c).followerMin);
+      view = toView(result, rubric, {
+        screeningId: null,
+        youcom: { status: "off", window: "month", sources: 0, queries: [] },
+        seconds: Math.round((Date.now() - started) / 100) / 10,
+        offline: true,
+      });
+    }
+    if (screenRun.current !== id) return;
+    set({ screening: view, screenRunning: false });
+  }, [set]);
+
   const approve: Ctx["approve"] = (id, side) => {
     set((prev) => {
       const l = prev.lanes[id];
@@ -124,7 +162,7 @@ export default function Home() {
     say(after.brandOk && after.creatorOk ? "Both sides approved. Deal confirmed and sample slot reserved." : side === "brand" ? "Brand approved the term sheet." : "You accepted the term sheet.");
   };
 
-  const ctx: Ctx = { s, set, say, publish, apply, setApplicantStatus, runNegotiation, approve };
+  const ctx: Ctx = { s, set, say, publish, apply, setApplicantStatus, runNegotiation, approve, runScreening };
 
   const mayaDeal = dealStatus(s, "maya");
   const steps = [
@@ -157,7 +195,7 @@ export default function Home() {
       <header className="demobar" aria-label="Prototype controls">
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <span className="eyebrow">Prototype · sample data</span>
-          <span style={{ fontFamily: "var(--font-tight), sans-serif", fontWeight: 700, fontSize: 17 }}>Product Finder</span>
+          <span style={{ fontFamily: "var(--font-tight), sans-serif", fontWeight: 700, fontSize: 17 }}>Unboxed</span>
         </div>
         <div role="group" aria-label="Demo role" className="seg">
           <button type="button" aria-pressed={s.role === "brand"} onClick={() => set({ role: "brand" })}>Brand view · Halden Works</button>
@@ -178,6 +216,9 @@ export default function Home() {
           ))}
         </ol>
         <p className="hint" style={{ flex: "1 1 240px" }}>{nextHint}</p>
+        {process.env.NEXT_PUBLIC_PREVIOUS_URL && (
+          <a className="linkbtn" href={process.env.NEXT_PUBLIC_PREVIOUS_URL}>Previous version</a>
+        )}
         <button
           type="button"
           className="linkbtn"

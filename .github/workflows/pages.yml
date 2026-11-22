@@ -14,21 +14,43 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  # The previous merged version (before Unboxed), kept live at /<repo>/previous/
+  PREVIOUS_COMMIT: cb9ba3a19511d6b3caeb7fb715c0c518d9bf4f91
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
-      # GitHub Pages is static: drop the API routes; the app falls back to a scripted replay in the browser.
-      - name: Build static export
+      - run: npm test
+
+      # Build the previous version from its commit, served under /previous/.
+      - name: Build previous version
+        run: |
+          git worktree add /tmp/previous "$PREVIOUS_COMMIT"
+          cd /tmp/previous
+          npm install --no-audit --no-fund
+          rm -rf app/api
+          STATIC_EXPORT=1 NEXT_PUBLIC_BASE_PATH="/${{ github.event.repository.name }}/previous" npx next build
+
+      # GitHub Pages is static: drop the API routes; screening and agents fall back to in-browser versions.
+      - name: Build Unboxed
         run: rm -rf app/api && npx next build
         env:
           STATIC_EXPORT: "1"
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          NEXT_PUBLIC_PREVIOUS_URL: /${{ github.event.repository.name }}/previous/
+
+      - name: Combine
+        run: cp -r /tmp/previous/out out/previous
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out

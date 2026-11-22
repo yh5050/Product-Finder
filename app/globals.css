@@ -261,3 +261,25 @@ fieldset[disabled] .input,fieldset[disabled] .affix{background:#F3F0EA;color:#3A
 @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .pop{animation:pop .35s ease-out both}
 @media (prefers-reduced-motion:reduce){.pop,.typing span,.funnel .bar span{animation:none;transition:none}}
+
+/* ---- merged v3: You.com screening evidence ---- */
+.scrgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;margin-bottom:24px}
+.livepill{display:inline-flex;align-self:flex-start;font-size:12px;font-weight:700;border-radius:999px;padding:4px 10px;background:#EEEAE2;color:#3A3936}
+.livepill.live{background:#E1F0E4;color:#1E6B35}
+.livepill.warn{background:#FBEFD9;color:#7A4B12}
+.srcs{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.src{font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px;background:#EEF2FD;color:#1A43B8;text-decoration:none}
+.src:hover{text-decoration:underline;color:#163A9E}
+.src.dark{background:rgba(255,255,255,.14);color:#DCE4FA}
+.score{display:inline-flex;flex-direction:column;align-items:flex-end;line-height:1}
+.score strong{font-family:var(--font-tight),sans-serif;font-size:26px}
+.score small{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5E5B55;margin-top:2px}
+.top100{list-style:decimal;padding-left:22px;max-height:260px;overflow:auto;margin:8px 0 0}
+.top100 li{display:list-item;padding:2px 0}
+.top100 li span.num{float:right;font-variant-numeric:tabular-nums}
+details summary{cursor:pointer;font-weight:600;color:#1F4FD8;min-height:32px;display:flex;align-items:center}
+.textbtn[disabled]{color:#5E5B55;cursor:wait}
+
+.app .textbtn{color:#1F4FD8}
+.app .textbtn[disabled]{color:#5E5B55}
+.app a.linkbtn{display:inline-flex;align-items:center}

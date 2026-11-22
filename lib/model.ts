@@ -1,5 +1,7 @@
-import { campaignTerms, defaultCampaign, fmtK, img, MAYA_BASE, OTHERS, VIDEOS, type Applicant, type Campaign, type Terms } from "./data";
-import type { Turn } from "./scripts";
+import { campaignTerms, defaultCampaign, fmtK, img, mayaApplicant, OTHERS, type Applicant, type Campaign, type Terms } from "./data";
+import type { ResearchEvent, Turn } from "./scripts";
+import type { Match, ScreeningView } from "./screening";
+import type { Evidence, LiveStatus } from "./youcom";
 
 export type AppStatus = "applied" | "shortlisted" | "declined";
 export type Application = { status: AppStatus; video: string; note: string };
@@ -7,7 +9,7 @@ export type Application = { status: AppStatus; video: string; note: string };
 export type Lane = {
   turns: Turn[];
   thinking: "brand" | "creator" | null;
-  outcome?: "agreed" | "no-deal";
+  outcome?: "agreed" | "no-deal" | "walked" | "failed";
   terms?: Terms;
   error?: string;
   brandOk?: boolean;
@@ -33,12 +35,20 @@ export type State = {
   lanes: Record<string, Lane>;
   negLive: boolean | null;
   negRunning: boolean;
+  /** Latest screening result, and the inputs it was run for (so a changed brief or a new application re-runs it). */
+  screening: ScreeningView | null;
+  screeningFor: string;
+  screenRunning: boolean;
+  research: (ResearchEvent & { pending?: boolean }) | null;
+  news: { status: LiveStatus; results: Evidence[]; error?: string } | null;
+  negNotice: string;
 };
 
 export const initialState = (): State => ({
   role: "brand", bTab: "builder", cScr: "feed", listing: "kb", published: false, error: "", toast: "",
   c: { ...defaultCampaign }, apps: {}, pick: "v1", note: "", others: { jon: "applied", tess: "applied" }, selA: "",
   fCat: "all", fPost: "any", lanes: {}, negLive: null, negRunning: false,
+  screening: null, screeningFor: "", screenRunning: false, research: null, news: null, negNotice: "",
 });
 
 export type TermRow = { k: string; v: string; n: string };
@@ -50,7 +60,7 @@ export type Listing = {
 
 export const STATUS_LABEL: Record<string, string> = {
   applied: "Applied", shortlisted: "Shortlisted", declined: "Declined", negotiating: "Negotiating",
-  agreed: "Terms ready", confirmed: "Deal confirmed", nodeal: "No deal",
+  agreed: "Terms ready", confirmed: "Deal confirmed", nodeal: "No deal", failed: "Agent error",
 };
 
 /** Builds the keyboard listing from the brand's live campaign fields, plus two seeded listings. */
@@ -115,20 +125,28 @@ export function listings(c: Campaign): Record<string, Listing> {
   return { kb, stand, org };
 }
 
-export type RankedApplicant = Applicant & { status: AppStatus; below: boolean; isNew: boolean; rank: number };
+export type RankedApplicant = Applicant & { status: AppStatus; below: boolean; isNew: boolean; rank: number; score: number; matched: Match[]; recentCategoryVideos: number };
 
-/** Applicants to the keyboard brief, ranked by relevant portfolio work (Maya first once she applies). */
+/** The key a screening result belongs to: who has applied and the brief's hard requirements. */
+export const screeningKey = (s: State) => `${s.apps.kb ? `maya:${s.apps.kb.video}` : "-"}|${s.c.type}|${s.c.type === "sponsored" ? s.c.followerMin : 0}`;
+
+/** Finalists from the latest screening, ranked by rubric score, with each one's review status. */
 export function applicants(s: State): RankedApplicant[] {
-  const minN = Number(s.c.followerMin) || 0;
-  const owned = s.c.type === "owned";
-  const list: (Applicant & { status: AppStatus; isNew: boolean })[] = [];
-  const app = s.apps.kb;
-  if (app) {
-    const v = VIDEOS[app.video];
-    list.push({ ...MAYA_BASE, note: app.note, video: v, fit: v.fit, status: app.status, isNew: app.status === "applied" });
-  }
-  for (const o of OTHERS) list.push({ ...o, status: s.others[o.id as "jon" | "tess"], isNew: false });
-  return list.map((a, i) => ({ ...a, rank: i + 1, below: !owned && a.followersN < minN }));
+  const finalists = s.screening?.finalists ?? [];
+  return finalists.flatMap((f, i) => {
+    let a: Applicant | undefined;
+    let status: AppStatus;
+    if (f.id === "maya") {
+      if (!s.apps.kb) return [];
+      a = mayaApplicant(s.apps.kb.video, s.apps.kb.note);
+      status = s.apps.kb.status;
+    } else {
+      a = OTHERS.find((o) => o.id === f.id);
+      status = s.others[f.id as "jon" | "tess"] ?? "applied";
+    }
+    if (!a) return [];
+    return [{ ...a, status, below: false, isNew: f.id === "maya" && status === "applied", rank: i + 1, score: f.score, matched: f.matched, recentCategoryVideos: f.recentCategoryVideos }];
+  });
 }
 
 /** Combined deal status for one creator: application status, then negotiation progress. */
@@ -137,7 +155,8 @@ export function dealStatus(s: State, id: string): string {
   const base = id === "maya" ? s.apps.kb?.status : s.others[id as "jon" | "tess"];
   if (!base) return "";
   if (base !== "shortlisted" || !lane) return base;
-  if (lane.outcome === "no-deal") return "nodeal";
+  if (lane.outcome === "failed") return "failed";
+  if (lane.outcome === "no-deal" || lane.outcome === "walked") return "nodeal";
   if (lane.outcome === "agreed") return lane.brandOk && lane.creatorOk ? "confirmed" : "agreed";
   return "negotiating";
 }

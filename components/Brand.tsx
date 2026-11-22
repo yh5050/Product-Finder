@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { campaignTerms, funnel, img, type Campaign } from "@/lib/data";
-import { applicants, dealStatus, listings, type Lane, type RankedApplicant } from "@/lib/model";
+import { useEffect, useRef } from "react";
+import { campaignTerms, fmtK, img, type Campaign } from "@/lib/data";
+import { applicants, dealStatus, listings, screeningKey, type Lane, type RankedApplicant } from "@/lib/model";
+import type { Rubric } from "@/lib/rubric";
+import type { ScreeningView } from "@/lib/screening";
 import type { Evidence } from "@/lib/youcom";
-import { BASE_PATH } from "@/lib/data";
 import type { Ctx } from "./ctx";
 import { Check, SelfReported, Status, TermsList, Thumb } from "./ui";
 
@@ -14,7 +15,7 @@ export default function BrandView({ ctx }: { ctx: Ctx }) {
   const shortlisted = applicants(s).filter((a) => a.status === "shortlisted").length;
   const tabs: [typeof s.bTab, string, number | null][] = [
     ["builder", "Campaign builder", null],
-    ["applicants", "Applicants", s.published ? count : null],
+    ["applicants", "Applicants", s.published && s.screening ? count : null],
     ["negotiation", "Agent negotiation", s.published && shortlisted ? shortlisted : null],
   ];
   return (
@@ -224,7 +225,7 @@ function Builder({ ctx }: { ctx: Ctx }) {
           {s.error && <p className="error" role="alert">{s.error}</p>}
           {s.published ? (
             <button type="button" className="btn primary block" onClick={() => set({ bTab: "applicants" })}>
-              View applicants ({applicants(s).length})
+              Screen applicants with You.com →
             </button>
           ) : (
             <>
@@ -238,29 +239,47 @@ function Builder({ ctx }: { ctx: Ctx }) {
   );
 }
 
-/* ---------------- Applicants + AI screening ---------------- */
+/* ---------------- Applicants + You.com screening ---------------- */
 
-function useScreening() {
-  const [shown, setShown] = useState(0);
-  const [evidence, setEvidence] = useState<Record<string, Evidence[]>>({});
-  const [live, setLive] = useState<boolean | null>(null);
-  useEffect(() => {
-    const t = setInterval(() => setShown((n) => (n < funnel.length ? n + 1 : n)), 350);
-    fetch(`${BASE_PATH}/api/screen`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no server"))))
-      .then((d: { live: boolean; results: { id: string; evidence: Evidence[] }[] }) => {
-        setLive(d.live);
-        setEvidence(Object.fromEntries(d.results.map((r) => [r.id, r.evidence])));
-      })
-      .catch(() => setLive(false));
-    return () => clearInterval(t);
-  }, []);
-  return { shown, evidence, live };
+const domain = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+};
+
+export function SourceChips({ sources, dark }: { sources: Evidence[]; dark?: boolean }) {
+  if (!sources.length) return null;
+  return (
+    <span className="srcs">
+      {sources.map((e) => (
+        <a key={e.url} className={`src ${dark ? "dark" : ""}`} href={e.url} target="_blank" rel="noreferrer" title={e.title}>
+          {domain(e.url)}{e.date ? ` · ${e.date.slice(0, 10)}` : ""}
+        </a>
+      ))}
+    </span>
+  );
+}
+
+function youcomLabel(v: ScreeningView) {
+  const y = v.youcom;
+  if (v.offline) return { cls: "", text: "Starting criteria · live You.com search runs on the server version" };
+  if (y.status === "off") return { cls: "", text: "You.com is off (no API key) · starting criteria" };
+  if (y.status === "error") return { cls: "warn", text: "Live search unavailable right now · starting criteria" };
+  if (y.status === "empty") return { cls: "warn", text: "You.com found nothing recent · starting criteria" };
+  const when = y.fetchedAt ? new Date(y.fetchedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+  return { cls: "live", text: `You.com live · ${y.queries.length} searches · ${y.sources} sources · past ${y.window === "month" ? "30 days" : "year"}${when ? ` · ${when}` : ""}` };
 }
 
 function Applicants({ ctx }: { ctx: Ctx }) {
-  const { s, set, setApplicantStatus } = ctx;
-  const { shown, evidence, live } = useScreening();
+  const { s, set, setApplicantStatus, runScreening } = ctx;
+  const key = screeningKey(s);
+  const stale = s.published && s.screeningFor !== key;
+  useEffect(() => {
+    if (stale && !s.screenRunning) runScreening();
+  }, [stale, s.screenRunning, runScreening]);
+
   if (!s.published)
     return (
       <main className="wrap">
@@ -275,11 +294,21 @@ function Applicants({ ctx }: { ctx: Ctx }) {
   const c = s.c;
   const kb = listings(c).kb;
   const owned = c.type === "owned";
+  const v = s.screening;
   const list = applicants(s);
-  const selId = list.some((a) => a.id === s.selA) ? s.selA : list[0].id;
-  const a = list.find((x) => x.id === selId)!;
-  const max = funnel[0].count;
+  const selId = list.some((a) => a.id === s.selA) ? s.selA : list[0]?.id;
+  const a = list.find((x) => x.id === selId);
   const shortlisted = list.filter((x) => x.status === "shortlisted").length;
+  const label = v ? youcomLabel(v) : null;
+  const counts = v?.counts;
+  const funnel = counts
+    ? [
+        { label: "Applications", count: counts.total },
+        { label: "Top 100 by today’s criteria", count: counts.shortlist },
+        { label: owned ? "Meet the brief (ships to U.S., vertical, 3+ keyboard videos in 90 days)" : `Meet the brief (incl. ${fmtK(Number(c.followerMin) || 0)}+ followers)`, count: counts.passedChecks },
+        { label: "Finalists for your review", count: counts.finalists },
+      ]
+    : [];
 
   return (
     <main className="wrap">
@@ -288,35 +317,68 @@ function Applicants({ ctx }: { ctx: Ctx }) {
           <p className="eyebrow">Applicants · {c.product}</p>
           <h1>Review applicants</h1>
           <p className="muted" style={{ marginTop: 6 }}>
-            Ranked by relevant portfolio work, not follower count. {owned ? "Brand-owned video: no follower minimum." : `Minimum ${Number(c.followerMin) / 1000}K followers for sponsored posts.`}
+            Ranked by recent videos that show what buyers care about this month, not by follower count. {owned ? "Brand-owned video: no follower minimum." : `Sponsored post: ${fmtK(Number(c.followerMin) || 0)}+ followers.`}
           </p>
         </div>
         <div className="fchips">
           <span className="chip">{kb.fee} flat fee</span>
           <span className="chip">{owned ? "Video delivered to brand" : "Sponsored post"}</span>
           <span className="chip">{kb.sample}</span>
-          <span className="chip sample">Sample data</span>
+          <span className="chip sample">Sample applicants</span>
         </div>
       </div>
 
-      <section className="card section" aria-labelledby="scr-h" style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h2 id="scr-h">AI screening</h2>
-          <span className="chip violet">Web checks by You.com · {live === null ? "searching…" : live ? "live" : "demo data"}</span>
-        </div>
-        <div className="funnel">
-          {funnel.map((f, i) => (
-            <div key={f.label} className="step" style={{ opacity: i < shown ? 1 : 0.15 }}>
-              <div className="row"><span>{f.label}</span><span className="num">{f.count.toLocaleString()}</span></div>
-              <div className="bar"><span style={{ width: i < shown ? `${Math.max((f.count / max) * 100, 1.5)}%` : "0%" }} /></div>
+      <div className="scrgrid">
+        <section className="card section" aria-labelledby="crit-h">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <h2 id="crit-h">What buyers care about this month</h2>
+            <button type="button" className="textbtn" onClick={runScreening} disabled={s.screenRunning}>{s.screenRunning ? "Searching…" : "Search again"}</button>
+          </div>
+          {label && <span className={`livepill ${label.cls}`}>{label.text}</span>}
+          {!v && <p className="muted small">Reading today’s web with You.com…</p>}
+          {v && (
+            <div className="funnel">
+              {v.rubric.criteria.map((cr) => (
+                <div key={cr.id} className="step">
+                  <div className="row"><span>{cr.label}</span><span className="num">{Math.round(cr.weight * 100)}%</span></div>
+                  <div className="bar"><span style={{ width: `${Math.round(cr.weight * 100)}%` }} /></div>
+                  {cr.evidence.length > 0 && <SourceChips sources={cr.evidence} />}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <p className="small muted">Screening only ranks and explains. It never uses inferred traits such as politics or income, and you make every shortlist decision.</p>
-      </section>
+          )}
+          {v?.rubric.note && v.youcom.status !== "off" && <p className="small muted">{v.rubric.note}</p>}
+        </section>
+
+        <section className="card section" aria-labelledby="scr-h">
+          <h2 id="scr-h">Screening</h2>
+          {!v && <p className="muted small">Ranking 1,000 sample applicants…</p>}
+          {v && (
+            <div className="funnel">
+              {funnel.map((f) => (
+                <div key={f.label} className="step">
+                  <div className="row"><span>{f.label}</span><span className="num">{f.count.toLocaleString()}</span></div>
+                  <div className="bar"><span style={{ width: `${Math.max((f.count / funnel[0].count) * 100, 1.5)}%` }} /></div>
+                </div>
+              ))}
+            </div>
+          )}
+          {v && (
+            <details className="small">
+              <summary>See the top 100</summary>
+              <ol className="top100">
+                {v.shortlist.map((x) => (
+                  <li key={x.id}><span>{x.name} <span className="muted">{x.handle}</span></span><span className="num">{x.score}</span></li>
+                ))}
+              </ol>
+            </details>
+          )}
+          <p className="small muted">Screening ranks and explains; you make every shortlist decision. It never uses inferred traits such as politics or income.</p>
+        </section>
+      </div>
 
       <div className="split">
-        <div className="alist" role="group" aria-label="Applicants, ranked by relevant portfolio work">
+        <div className="alist" role="group" aria-label="Finalists, ranked by score">
           {list.map((x) => (
             <button key={x.id} type="button" className="aitem" aria-pressed={x.id === selId} onClick={() => set({ selA: x.id })}>
               <span className="rank" aria-label={`Rank ${x.rank}`}>{x.rank}</span>
@@ -327,27 +389,28 @@ function Applicants({ ctx }: { ctx: Ctx }) {
                   <Status status={dealStatus(s, x.id)} />
                 </span>
                 <span className="meta" style={{ display: "block" }}>{x.handle} · {x.platform} · {x.followers}</span>
-                <span className="fit" style={{ display: "block" }}>{x.rankWhy}</span>
-                {x.below && <span className="warn" style={{ display: "block" }}>Below the follower minimum</span>}
+                <span className="fit" style={{ display: "block" }}>Score {x.score} · {x.recentCategoryVideos} keyboard videos in 90 days</span>
                 {x.isNew && <span className="chip cobalt" style={{ marginTop: 6 }}>New application</span>}
               </span>
             </button>
           ))}
-          {!s.apps.kb && <div className="info" style={{ fontSize: 13 }}>Maya Okafor hasn’t applied yet. Switch to Creator view to apply as Maya.</div>}
+          {v && !s.apps.kb && <div className="info" style={{ fontSize: 13 }}>Maya Okafor hasn’t applied yet. Switch to Creator view to apply as Maya; screening re-runs with her in the pool.</div>}
+          {v && list.length === 0 && <div className="info" style={{ fontSize: 13 }}>No applicant meets every requirement of this brief.</div>}
           {shortlisted > 0 && (
             <button type="button" className="btn primary block" onClick={() => set({ bTab: "negotiation" })}>
               Negotiate with {shortlisted} shortlisted {shortlisted === 1 ? "creator" : "creators"} →
             </button>
           )}
         </div>
-        <ApplicantPanel ctx={ctx} a={a} evidence={evidence[a.id]} live={live} setApplicantStatus={setApplicantStatus} />
+        {a && v && <ApplicantPanel ctx={ctx} a={a} rubric={v.rubric} setApplicantStatus={setApplicantStatus} />}
       </div>
     </main>
   );
 }
 
-function ApplicantPanel({ ctx, a, evidence, live, setApplicantStatus }: { ctx: Ctx; a: RankedApplicant; evidence?: Evidence[]; live: boolean | null; setApplicantStatus: Ctx["setApplicantStatus"] }) {
+function ApplicantPanel({ ctx, a, rubric, setApplicantStatus }: { ctx: Ctx; a: RankedApplicant; rubric: Rubric; setApplicantStatus: Ctx["setApplicantStatus"] }) {
   const status = dealStatus(ctx.s, a.id);
+  const evidenceFor = (id: string) => rubric.criteria.find((c) => c.id === id)?.evidence ?? [];
   return (
     <section className="card apanel" aria-labelledby="ap-name">
       <div className="ahead">
@@ -358,7 +421,10 @@ function ApplicantPanel({ ctx, a, evidence, live, setApplicantStatus }: { ctx: C
             <p className="muted">{a.handle} · {a.platform}</p>
           </div>
         </div>
-        <Status status={status} />
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <span className="score"><strong>{a.score}</strong><small>score</small></span>
+          <Status status={status} />
+        </div>
       </div>
 
       <div className="vfeature">
@@ -371,11 +437,22 @@ function ApplicantPanel({ ctx, a, evidence, live, setApplicantStatus }: { ctx: C
             <h3 style={{ fontSize: 19, lineHeight: 1.3 }}>“{a.video.title}”</h3>
             <p className="small muted" style={{ marginTop: 4 }}>{a.video.dur} · posted {a.video.date} · {a.video.views} views <SelfReported /></p>
           </div>
+          <ul className="lists">
+            {a.fit.map((f) => (
+              <li key={f}><Check color="#1F4FD8" /><span>{f}</span></li>
+            ))}
+          </ul>
           <div>
-            <p className="eyebrow" style={{ marginBottom: 8 }}>Why it fits this brief</p>
+            <p className="eyebrow" style={{ marginBottom: 8 }}>Why it fits this month’s criteria</p>
             <ul className="lists">
-              {a.fit.map((f) => (
-                <li key={f}><Check color="#1F4FD8" /><span>{f}</span></li>
+              {a.matched.map((m) => (
+                <li key={m.id}>
+                  <Check color="#1F4FD8" />
+                  <span>
+                    <strong>{m.label}</strong>: shown in {m.videos.map((t) => `“${t}”`).join(", ")}
+                    <SourceChips sources={evidenceFor(m.id)} />
+                  </span>
+                </li>
               ))}
             </ul>
           </div>
@@ -395,15 +472,6 @@ function ApplicantPanel({ ctx, a, evidence, live, setApplicantStatus }: { ctx: C
           <div className="stat"><p className="small muted">Audience</p><p className="sv">{a.followers}</p><SelfReported /><p className="sn">{a.metricDate}</p></div>
           <div className="stat"><p className="small muted">Recent views</p><p className="sv">{a.median}</p><SelfReported /><p className="sn">Median of last 10 videos</p></div>
         </div>
-        <p className="evidence" style={{ marginTop: 12 }}>
-          <span style={{ color: "#4B2C9A", fontWeight: 600 }}>You.com web evidence: </span>
-          {live === null && <span className="muted">searching…</span>}
-          {live === false && <span className="muted">demo mode (set YDC_API_KEY on a server deploy for live search)</span>}
-          {live && (!evidence || evidence.length === 0) && <span className="muted">no public results</span>}
-          {live && evidence?.slice(0, 2).map((e) => (
-            <a key={e.url} href={e.url} target="_blank" rel="noreferrer">{e.title.slice(0, 60)}</a>
-          ))}
-        </p>
       </div>
 
       <div className="actions">
@@ -430,6 +498,14 @@ function ApplicantPanel({ ctx, a, evidence, live, setApplicantStatus }: { ctx: C
 }
 
 /* ---------------- Agent negotiation ---------------- */
+
+function researchLabel(r: NonNullable<Ctx["s"]["research"]>) {
+  if (r.pending) return { cls: "", text: "You.com Research: checking public creator rates…" };
+  if (r.status !== "live" || !r.content) return { cls: "warn", text: `You.com Research unavailable${r.error ? ` (${r.error})` : ""}` };
+  const lo = Number(r.content.fee_low_usd), hi = Number(r.content.fee_high_usd);
+  const range = Number.isFinite(lo) && Number.isFinite(hi) ? `typical $${lo}–$${hi}` : "answer received";
+  return { cls: "live", text: `You.com Research: ${range}${r.seconds ? ` · ${r.seconds}s` : ""}` };
+}
 
 function Negotiation({ ctx }: { ctx: Ctx }) {
   const { s, set, runNegotiation, approve } = ctx;
@@ -464,12 +540,16 @@ function Negotiation({ ctx }: { ctx: Ctx }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {started && <span className={`mode ${s.negLive ? "live" : ""}`}>{s.negLive === null ? "connecting…" : s.negLive ? "Live Claude agents" : "Scripted replay"}</span>}
+          {s.negLive && s.research && <span className={`mode ${researchLabel(s.research).cls === "live" ? "live" : ""}`} title={s.research.sources.map((x) => x.url).join("\n")}>{researchLabel(s.research).text}</span>}
+          {s.negLive && s.news && <span className={`mode ${s.news.status === "live" ? "live" : ""}`}>Creator agents: {s.news.status === "live" ? `${s.news.results.length} launch sources` : "no live news"}</span>}
           <button type="button" className="btn primary" disabled={s.negRunning} onClick={runNegotiation}>
             {s.negRunning ? "Negotiating…" : started ? "Re-run agents" : `Start agents (${list.length})`}
           </button>
         </div>
       </div>
 
+      {s.negNotice && <div className="info" style={{ marginBottom: 16 }}>{s.negNotice}</div>}
+      {started && s.negLive === false && <div className="info" style={{ marginBottom: 16 }}>Replay of a scripted run: the agents’ messages are pre-written and cite no live sources. Live agents, You.com evidence and Research run on the server version with API keys.</div>}
       {!started && (
         <div className="info cobalt" style={{ marginBottom: 16 }}>
           Opening offer for every creator: ${base.fee} flat fee, {base.deadline}, {base.usageRights.toLowerCase()}, {base.keepSample ? "creator keeps the sample" : "loaner sample"}. Each creator’s agent has its own private minimum.
@@ -500,7 +580,7 @@ function LaneView({ a, lane, baseDeadline, baseUsage, basePayment, onApprove }: 
     box.current?.scrollTo({ top: box.current.scrollHeight, behavior: "smooth" });
   }, [n, lane?.thinking]);
   const round = Math.ceil((n + 1) / 2);
-  const pill = !lane ? null : lane.outcome === "agreed" ? <span className="st st-agreed">Agreed</span> : lane.outcome === "no-deal" ? <span className="st st-nodeal">No deal</span> : <span className="st st-negotiating">Round {round}</span>;
+  const pill = !lane ? null : lane.outcome === "agreed" ? <span className="st st-agreed">Agreed</span> : lane.outcome === "failed" ? <span className="st st-nodeal">Agent error</span> : lane.outcome === "no-deal" || lane.outcome === "walked" ? <span className="st st-nodeal">No deal</span> : <span className="st st-negotiating">Round {round}</span>;
 
   return (
     <section className="card lane" aria-label={`Negotiation with ${a.name}`}>
@@ -516,8 +596,9 @@ function LaneView({ a, lane, baseDeadline, baseUsage, basePayment, onApprove }: 
         {!lane && <p className="small muted">Waiting to start.</p>}
         {lane?.turns.map((t, i) => (
           <div key={i} className={`bubble ${t.from} pop`}>
-            <p className="who">{t.from === "brand" ? "Halden agent" : `${a.first}’s agent`} · {t.status}</p>
+            <p className="who">{t.from === "brand" ? "Halden agent" : `${a.first}’s agent`} · {t.status}{t.usedResearch ? " · used Research" : ""}</p>
             <p>{t.text}</p>
+            <SourceChips sources={t.sources ?? []} dark={t.from === "creator"} />
             <div className="tchips">
               <span className={`tchip ${t.status === "accept" ? "ok" : ""}`}>${t.terms.fee}</span>
               {t.terms.deadline !== baseDeadline && <span className={`tchip ${t.status === "accept" ? "ok" : ""}`}>{t.terms.deadline}</span>}
